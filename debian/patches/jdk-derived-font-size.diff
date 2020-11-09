@@ -1,0 +1,14 @@
+# DP: Debian issue #834053, adjust size for derived fonts.
+# not yet forwarded.
+
+--- src/jdk/src/share/classes/java/awt/Font.java
++++ src/jdk/src/share/classes/java/awt/Font.java
+@@ -1864,7 +1864,7 @@
+      */
+     public Font deriveFont(int style, float size){
+         if (values == null) {
+-            return new Font(name, style, size, createdFont, font2DHandle);
++            return new Font(name, style, pointSize, createdFont, font2DHandle);
+         }
+         AttributeValues newValues = getAttributeValues().clone();
+         int oldStyle = (this.style != style) ? this.style : -1;

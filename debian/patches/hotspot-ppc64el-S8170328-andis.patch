@@ -1,0 +1,34 @@
+
+# HG changeset patch
+# User mdoerr
+# Date 1480079712 7200
+# Node ID 7c3dc80542b645e7e8b914f96371636db764c110
+# Parent  75f5e49c6187981a9c9e6846f652a7d472ef555e
+8170328: PPC64: Use andis instead of lis/and
+Reviewed-by: goetz, mdoerr
+Contributed-by: Igor Nunes <igor.nunes@eldorado.org.br>
+
+diff -r 75f5e49c6187 -r 7c3dc80542b6 src/cpu/ppc/vm/ppc.ad
+--- openjdk/hotspot/src/cpu/ppc/vm/ppc.ad	Thu Oct 27 12:22:28 2016 +0200
++++ openjdk/hotspot/src/cpu/ppc/vm/ppc.ad	Fri Nov 25 11:15:12 2016 -0200
+@@ -8889,6 +8889,19 @@
+   ins_pipe(pipe_class_default);
+ %}
+ 
++// Left shifted Immediate And
++instruct andI_reg_immIhi16(iRegIdst dst, iRegIsrc src1, immIhi16  src2, flagsRegCR0 cr0) %{
++  match(Set dst (AndI src1 src2));
++  effect(KILL cr0);
++  format %{ "ANDIS   $dst, $src1, $src2.hi" %}
++  size(4);
++  ins_encode %{
++    // TODO: PPC port $archOpcode(ppc64Opcode_andis_);
++    __ andis_($dst$$Register, $src1$$Register, (int)((unsigned short)(($src2$$constant & 0xFFFF0000) >> 16)));
++  %}
++  ins_pipe(pipe_class_default);
++%}
++
+ // Immediate And
+ instruct andI_reg_uimm16(iRegIdst dst, iRegIsrc src1, uimmI16 src2, flagsRegCR0 cr0) %{
+   match(Set dst (AndI src1 src2));
+

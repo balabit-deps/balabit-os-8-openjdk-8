@@ -1,0 +1,12 @@
+--- a/common/autoconf/autogen.sh
++++ b/common/autoconf/autogen.sh
+@@ -61,7 +61,9 @@ fi
+ 
+ custom_hook=$custom_script_dir/custom-hook.m4
+ 
++if test "x${AUTOCONF}" = x; then
+ AUTOCONF="`which autoconf 2> /dev/null | grep -v '^no autoconf in'`"
++fi
+ 
+ if test "x${AUTOCONF}" = x; then
+   echo "You need autoconf installed to be able to regenerate the configure script"

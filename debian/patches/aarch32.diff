@@ -1,0 +1,180 @@
+
+--- a/common/autoconf/jdk-options.m4
++++ b/common/autoconf/jdk-options.m4
+@@ -98,7 +98,11 @@ AC_DEFUN_ONCE([JDKOPT_SETUP_JVM_VARIANTS
+ 	[JVM variants (separated by commas) to build (server, client, minimal1, kernel, zero, zeroshark, core) @<:@server@:>@])])
+ 
+   if test "x$with_jvm_variants" = x; then
+-    with_jvm_variants="server"
++    if test "x$OPENJDK_TARGET_CPU" = xaarch32; then
++      with_jvm_variants="client";
++    else
++      with_jvm_variants="server";
++    fi
+   fi
+ 
+   JVM_VARIANTS=",$with_jvm_variants,"
+@@ -161,6 +165,9 @@ AC_DEFUN_ONCE([JDKOPT_SETUP_JVM_VARIANTS
+   if test "x$VAR_CPU" = xppc64 -o "x$VAR_CPU" = xppc64le ; then
+     INCLUDE_SA=false
+   fi
++  if test "x$OPENJDK_TARGET_CPU" = xaarch32; then
++    INCLUDE_SA=false
++  fi
+   if test "x$OPENJDK_TARGET_CPU" = xaarch64; then
+     INCLUDE_SA=false
+   fi
+--- a/common/autoconf/platform.m4
++++ b/common/autoconf/platform.m4
+@@ -56,8 +56,8 @@ AC_DEFUN([PLATFORM_EXTRACT_VARS_FROM_CPU
+       VAR_CPU_ENDIAN=little
+       ;;
+     arm*)
+-      VAR_CPU=arm
+-      VAR_CPU_ARCH=arm
++      VAR_CPU=aarch32
++      VAR_CPU_ARCH=aarch32
+       VAR_CPU_BITS=32
+       VAR_CPU_ENDIAN=little
+       ;;
+@@ -346,6 +346,8 @@ AC_DEFUN([PLATFORM_SETUP_LEGACY_VARS],
+   elif test "x$OPENJDK_TARGET_OS" != xmacosx && test "x$OPENJDK_TARGET_CPU" = xx86_64; then
+     # On all platforms except MacOSX replace x86_64 with amd64.
+     OPENJDK_TARGET_CPU_LEGACY="amd64"
++  elif test "x$OPENJDK_TARGET_CPU" = xaarch32; then
++    OPENJDK_TARGET_CPU_LEGACY="arm"
+   fi
+   AC_SUBST(OPENJDK_TARGET_CPU_LEGACY)
+ 
+@@ -356,6 +358,8 @@ AC_DEFUN([PLATFORM_SETUP_LEGACY_VARS],
+     OPENJDK_TARGET_CPU_LEGACY_LIB="i386"
+   elif test "x$OPENJDK_TARGET_CPU" = xx86_64; then
+     OPENJDK_TARGET_CPU_LEGACY_LIB="amd64"
++  elif test "x$OPENJDK_TARGET_CPU" = xaarch32; then
++    OPENJDK_TARGET_CPU_LEGACY_LIB="arm"
+   fi
+   AC_SUBST(OPENJDK_TARGET_CPU_LEGACY_LIB)
+ 
+@@ -389,6 +393,8 @@ AC_DEFUN([PLATFORM_SETUP_LEGACY_VARS],
+   elif test "x$OPENJDK_TARGET_OS" != xmacosx && test "x$OPENJDK_TARGET_CPU" = xx86_64; then
+     # On all platforms except macosx, we replace x86_64 with amd64.
+     OPENJDK_TARGET_CPU_OSARCH="amd64"
++  elif test "x$OPENJDK_TARGET_CPU" = xaarch32; then
++    OPENJDK_TARGET_CPU_OSARCH="arm"
+   fi
+   AC_SUBST(OPENJDK_TARGET_CPU_OSARCH)
+ 
+@@ -398,6 +404,8 @@ AC_DEFUN([PLATFORM_SETUP_LEGACY_VARS],
+   elif test "x$OPENJDK_TARGET_OS" != xmacosx && test "x$OPENJDK_TARGET_CPU" = xx86_64; then
+     # On all platforms except macosx, we replace x86_64 with amd64.
+     OPENJDK_TARGET_CPU_JLI="amd64"
++  elif test "x$OPENJDK_TARGET_CPU" = xaarch32; then
++    OPENJDK_TARGET_CPU_JLI="arm"
+   fi
+   # Now setup the -D flags for building libjli.
+   OPENJDK_TARGET_CPU_JLI_CFLAGS="-DLIBARCHNAME='\"$OPENJDK_TARGET_CPU_JLI\"'"
+--- a/jdk/make/CopyFiles.gmk
++++ b/jdk/make/CopyFiles.gmk
+@@ -328,9 +328,15 @@ else
+   ifeq ($(CLIENT_AND_SERVER), true)
+     COPY_JVM_CFG_FILE := true
+   else
+-    # For zero, the default jvm.cfg file is sufficient
++    # For zero, the default jvm.cfg file is sufficient.
+     ifeq ($(JVM_VARIANT_ZERO), true)
+       COPY_JVM_CFG_FILE := true
++    else
++      ifeq ($(OPENJDK_TARGET_CPU), aarch32)
++        ifeq ($(JVM_VARIANT_CORE), true)
++          COPY_JVM_CFG_FILE := true
++        endif
++      endif
+     endif
+   endif
+ endif
+--- a/jdk/make/lib/NioLibraries.gmk
++++ b/jdk/make/lib/NioLibraries.gmk
+@@ -174,6 +174,9 @@ ifeq ($(OPENJDK_TARGET_OS_API), posix)
+     ifeq ($(OPENJDK_TARGET_CPU_ARCH), ppc)
+       SCTP_WERROR :=
+     endif
++    ifeq ($(OPENJDK_TARGET_CPU_ARCH), aarch32)
++      SCTP_WERROR :=
++    endif
+ 
+     $(eval $(call SetupNativeCompilation,BUILD_LIBSCTP, \
+         LIBRARY := sctp, \
+--- a/jdk/make/lib/SoundLibraries.gmk
++++ b/jdk/make/lib/SoundLibraries.gmk
+@@ -147,6 +147,10 @@ else
+   ifeq ($(OPENJDK_TARGET_CPU), aarch64)
+ 	LIBJSOUND_CFLAGS += -DX_ARCH=X_AARCH64
+   endif
++
++  ifeq ($(OPENJDK_TARGET_CPU), aarch32)
++    LIBJSOUND_CFLAGS += -DX_ARCH=X_AARCH32
++  endif
+ endif
+ 
+ LIBJSOUND_CFLAGS += -DEXTRA_SOUND_JNI_LIBS='"$(EXTRA_SOUND_JNI_LIBS)"'
+--- a/jdk/src/share/native/com/sun/media/sound/SoundDefs.h
++++ b/jdk/src/share/native/com/sun/media/sound/SoundDefs.h
+@@ -46,6 +46,7 @@
+ #define X_PPC64         9
+ #define X_PPC64LE      10
+ #define X_AARCH64      11
++#define X_AARCH32      12
+ 
+ // **********************************
+ // Make sure you set X_PLATFORM and X_ARCH defines correctly.
+--- /dev/null
++++ b/jdk/src/solaris/bin/aarch32/jvm.cfg
+@@ -0,0 +1,34 @@
++# Copyright (c) 2015, 2015, Oracle and/or its affiliates. All rights reserved.
++# DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
++#
++# This code is free software; you can redistribute it and/or modify it
++# under the terms of the GNU General Public License version 2 only, as
++# published by the Free Software Foundation.  Oracle designates this
++# particular file as subject to the "Classpath" exception as provided
++# by Oracle in the LICENSE file that accompanied this code.
++#
++# This code is distributed in the hope that it will be useful, but WITHOUT
++# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
++# FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
++# version 2 for more details (a copy is included in the LICENSE file that
++# accompanied this code).
++#
++# You should have received a copy of the GNU General Public License version
++# 2 along with this work; if not, write to the Free Software Foundation,
++# Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
++#
++# Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
++# or visit www.oracle.com if you need additional information or have any
++# questions.
++#
++# List of JVMs that can be used as an option to java, javac, etc.
++# Order is important -- first in this list is the default JVM.
++# NOTE that this both this file and its format are UNSUPPORTED and
++# WILL GO AWAY in a future release.
++#
++# You may also select a JVM in an arbitrary location with the
++# "-XXaltjvm=<jvm_dir>" option, but that too is unsupported
++# and may not be available in a future release.
++#
++-server KNOWN
++-client IGNORE
+--- a/hotspot/make/defs.make
++++ b/hotspot/make/defs.make
+@@ -333,6 +333,11 @@ ifneq ($(OSNAME),windows)
+   LIBARCH/ppc64   = ppc64
+   LIBARCH/aarch32 = aarch32
+ 
++  # Override LIBARCH for aarch32
++  ifeq ($(ARCH), aarch32)
++    LIBARCH = arm
++  endif
++
+   LP64_ARCH += sparcv9 amd64 ia64 ppc64 zero
+ endif
+ 

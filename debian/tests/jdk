@@ -1,0 +1,42 @@
+#!/bin/bash
+set -o errexit
+set -o errtrace
+set -o pipefail
+set -o nounset
+
+[ -d jdk/test/ ] || tar xf jdk.tar.xz jdk/test/
+
+cleanup() {
+  pid="$(jobs -p)"
+  [ -n "$pid" ] && pkill -P ${pid}
+  pkill -9 -P $$
+}
+
+for sig in INT QUIT HUP TERM; do trap "cleanup; trap - $sig EXIT; kill -s $sig "'"$$"' "$sig"; done
+trap cleanup EXIT
+
+export HOME="$(pwd)/jdk/test/"
+export XAUTHORITY="${HOME}/.Xauthority"
+export DISPLAY=:10
+
+host_arch="${DEB_HOST_ARCH:-$(dpkg --print-architecture)}"
+
+if ! grep -q -w "${host_arch}" debian/tests/hotspot-archs; then
+  echo "Warning: architecture not listed in debian/tests/hotspot-archs. The jdk testsuite might timeout."
+  if [ -z "${FORCE_JDK_TEST+x}" ]; then
+    echo "Skipping test. Set environment variable FORCE_JDK_TEST to override this check."
+    exit 77
+  fi
+fi
+
+debian/tests/start-xvfb.sh 10 &
+sleep 3
+
+debian/tests/jtreg-autopkgtest.sh jdk \
+	-dir:jdk/test \
+	-exclude:jdk/test/ProblemList.txt \
+	-exclude:debian/tests/jdk-problem-list.txt \
+	:jdk_core :jdk_svc :jdk_beans :jdk_imageio :jdk_sound :jdk_sctp \
+	javax/accessibility com/sun/java/swing javax/print sun/pisces com/sun/awt || true
+
+debian/tests/jtdiff-autopkgtest.sh jdk

@@ -1,0 +1,2 @@
+openjdk-8 source: quilt-build-dep-but-no-series-file
+openjdk-8 source: patch-file-present-but-not-mentioned-in-series

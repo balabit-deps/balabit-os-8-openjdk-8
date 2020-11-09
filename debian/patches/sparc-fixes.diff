@@ -1,0 +1,15 @@
+--- a/jdk/make/CompileDemos.gmk
++++ b/jdk/make/CompileDemos.gmk
+@@ -235,10 +235,12 @@ define SetupJVMTIDemo
+   $1_CXXFLAGS := $(CXXFLAGS_JDKLIB) -I$(JDK_TOPDIR)/src/share/demo/jvmti/$1 \
+       $$(BUILD_DEMO_JVMTI_$1_EXTRA_INC) $3 \
+       $(CXXFLAGS_DEBUG_SYMBOLS)
++  ifeq ($(OPENJDK_TARGET_OS), solaris)
+   ifeq ($1-$(OPENJDK_TARGET_CPU_ARCH), waiters-sparc)
+     $1_FILTER := -xregs=no%appl
+     $1_CXXFLAGS := $$(filter-out $$($1_FILTER), $$($1_CXXFLAGS))
+   endif
++  endif
+ 
+   # Workaround for CFLAGS_JDKLIB containing ',' on solaris. If this is added as 'CFLAGS' to the
+   # eval call below, the comma gets expanded too early.

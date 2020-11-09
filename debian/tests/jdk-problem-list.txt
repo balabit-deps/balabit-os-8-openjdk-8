@@ -1,0 +1,59 @@
+############################################################################
+
+# Debian - tests to be fixed
+
+############################################################################
+# Execution failed: `main' threw exception:
+# java.awt.AWTError:
+# Error trying to install Assistive Technology:
+# org.GNOME.Accessibility.AtkWrapper java.security.AccessControlException: access denied ("java.lang.RuntimePermission" "accessClassInPackage.org.GNOME.Accessibility")
+# Need to either disable AtkWrapper or add it to the security policy
+java/beans/PropertyEditor/TestFontClass.java			linux-all
+
+# Execution failed: `main' threw exception: java.lang.Exception: At least one cacert test failed
+# Need to update tests to conform to Debian/Ubuntu certificates
+sun/security/lib/cacerts/VerifyCACerts.java			linux-all
+
+# timing-out, exit 1, need to investigate why
+#sun/tools/clhsdb/Basic.sh					linux-all
+#sun/tools/hsdb/Basic.sh						linux-all
+
+# tests, ignore on armhf (os.arch is arm)
+com/sun/crypto/provider/KeyAgreement/SupportedDHKeys.java                                                        linux-arm
+com/sun/crypto/provider/KeyAgreement/SupportedDHParamGens.java                                                   linux-arm
+com/sun/jdi/JdbLockTest.sh                                                                                       linux-arm
+com/sun/jndi/ldap/DisconnectNPETest.java                                                                         linux-arm
+java/beans/VetoableChangeSupport/Test7148143.java                                                                linux-arm
+java/beans/XMLEncoder/java_util_JumboEnumSet.java                                                                linux-arm
+java/beans/XMLEncoder/Test4625418.java                                                                           linux-arm
+java/lang/annotation/TypeParamAnnotation.java                                                                    linux-arm
+java/lang/invoke/MethodHandles/CatchExceptionTest.java                                                           linux-arm
+java/lang/invoke/ObjectMethodInInterfaceTest.java                                                                linux-arm
+java/lang/StringBuilder/BuilderForwarding.java                                                                   linux-arm
+java/rmi/server/serverStackTrace/ServerStackTrace.java                                                           linux-arm
+java/rmi/transport/handshakeFailure/HandshakeFailure.java                                                        linux-arm
+java/security/KeyPairGenerator/SolarisShortDSA.java                                                              linux-arm
+java/time/test/java/time/format/TestReducedPrinter.java                                                          linux-arm
+java/util/Calendar/JapaneseLenientEraTest.java                                                                   linux-arm
+java/util/stream/boottest/java/util/stream/SpinedBufferTest.java                                                 linux-arm
+java/util/stream/test/org/openjdk/tests/java/util/stream/ForEachOpTest.java                                      linux-arm
+javax/management/Introspector/SetWrongTypeAttributeTest.java                                                     linux-arm
+javax/management/mxbean/SameObjectTwoNamesTest.java                                                              linux-arm
+javax/sound/midi/Gervill/ModelSource/SetIdentifier.java                                                          linux-arm
+jdk/lambda/FDTest.java                                                                                           linux-arm
+sun/misc/FloatingDecimal/TestFloatingDecimal.java                                                                linux-arm
+sun/security/krb5/auto/CleanState.java                                                                           linux-arm
+sun/security/krb5/auto/OkAsDelegate.java                                                                         linux-arm
+sun/security/provider/DSA/SupportedDSAParamGen.java                                                              linux-arm
+sun/security/provider/DSA/TestAlgParameterGenerator.java                                                         linux-arm
+sun/security/provider/NSASuiteB/TestDSAGenParameterSpec.java                                                     linux-arm
+sun/security/rsa/pss/SignatureTest2.java                                                                         linux-arm
+sun/security/rsa/SignedObjectChain.java                                                                          linux-arm
+sun/security/rsa/TestSigGen15.java                                                                               linux-arm
+sun/security/ssl/javax/net/ssl/NewAPIs/SSLEngine/ConnectionTest.java                                             linux-arm
+sun/security/tools/jarsigner/concise_jarsigner.sh                                                                linux-arm
+sun/security/tools/jarsigner/samename.sh                                                                         linux-arm
+sun/security/tools/jarsigner/Warning.java                                                                        linux-arm
+sun/security/tools/keytool/PSS.java                                                                              linux-arm
+sun/security/util/math/TestIntegerModuloP.java                                                                   linux-arm
+sun/tools/jrunscript/jrunscript-argsTest.sh                                                                      linux-arm

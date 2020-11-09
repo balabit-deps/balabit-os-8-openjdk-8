@@ -1,0 +1,13 @@
+[Desktop Entry]
+Name=@vendor@ Java @RELEASE@ Policy Tool
+Name[fi]=@vendor@ Java @RELEASE@ - käytäntötyökalu
+Name[fr]=@vendor@ Java @RELEASE@ - Outil de réglage
+Comment=@vendor@ Java @RELEASE@ Policy Tool
+Comment[fi]=@vendor@ Java @RELEASE@ - käytäntötyökalu
+Comment[fr]=@vendor@ Java @RELEASE@ - Outil de réglage
+Keywords=java;security;policytool
+Exec=/usr/bin/policytool
+Terminal=false
+Type=Application
+Icon=@basename@
+Categories=Settings;

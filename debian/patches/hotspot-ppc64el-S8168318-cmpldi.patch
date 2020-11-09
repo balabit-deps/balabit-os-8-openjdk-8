@@ -1,0 +1,32 @@
+
+# HG changeset patch
+# User goetz
+# Date 1477563748 -7200
+# Node ID 75f5e49c6187981a9c9e6846f652a7d472ef555e
+# Parent  9575483cce09eeb46b25c401cb2465050c1c9194
+8168318: PPC64: Use cmpldi instead of li/cmpld
+Reviewed-by: goetz
+Contributed-by: igor.nunes@eldorado.org.br
+
+diff -r 9575483cce09 -r 75f5e49c6187 src/cpu/ppc/vm/ppc.ad
+--- openjdk/hotspot/src/cpu/ppc/vm/ppc.ad	Thu Oct 12 16:29:52 2017 +0100
++++ openjdk/hotspot/src/cpu/ppc/vm/ppc.ad	Thu Oct 27 12:22:28 2016 +0200
+@@ -10571,6 +10571,17 @@
+   ins_pipe(pipe_class_compare);
+ %}
+ 
++instruct cmpP_reg_null(flagsReg crx, iRegP_N2P src1, immP_0or1 src2) %{
++  match(Set crx (CmpP src1 src2));
++  format %{ "CMPLDI   $crx, $src1, $src2 \t// ptr" %}
++  size(4);
++  ins_encode %{
++    // TODO: PPC port $archOpcode(ppc64Opcode_cmpl);
++    __ cmpldi($crx$$CondRegister, $src1$$Register, (int)((short)($src2$$constant & 0xFFFF)));
++  %}
++  ins_pipe(pipe_class_compare);
++%}
++
+ // Used in postalloc expand.
+ instruct cmpP_reg_imm16(flagsReg crx, iRegPsrc src1, immL16 src2) %{
+   // This match rule prevents reordering of node before a safepoint.
+

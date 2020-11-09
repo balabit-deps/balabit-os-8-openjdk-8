@@ -1,0 +1,2844 @@
+Description: Hotspot patch from 8u272-b10
+ Security update for hotspot, missing from aarch32 repo.
+Origin: upstream, https://cr.openjdk.java.net/~andrew/openjdk8/8u272/hotspot/hotspot.changeset
+Forwarded: not-needed
+Last-Update: 2020-10-25
+---
+This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
+
+# HG changeset patch
+# User vkempik
+# Date 1600769379 -10800
+#      Tue Sep 22 13:09:39 2020 +0300
+# Node ID d0f692037e7bdbae7e5847b51d7a55b0328ae6c1
+# Parent  c92ba514724d4542885f30bc2e3e24ce14c4f47b
+8233624: Enhance JNI linkage
+Reviewed-by: dholmes, jrose, rhalade, mschoene, mbalao, andrew
+
+diff --git openjdk/hotspot/src/share/vm/prims/nativeLookup.cpp openjdk/hotspot/src/share/vm/prims/nativeLookup.cpp
+--- openjdk/hotspot/src/share/vm/prims/nativeLookup.cpp
++++ openjdk/hotspot/src/share/vm/prims/nativeLookup.cpp
+@@ -61,27 +61,118 @@
+ #endif
+ 
+ 
+-static void mangle_name_on(outputStream* st, Symbol* name, int begin, int end) {
++/*
++
++The JNI specification defines the mapping from a Java native method name to
++a C native library implementation function name as follows:
++
++  The mapping produces a native method name by concatenating the following components
++  derived from a `native` method declaration:
++
++  1. the prefix Java_
++  2. given the binary name, in internal form, of the class which declares the native method:
++     the result of escaping the name.
++  3. an underscore ("_")
++  4. the escaped method name
++  5. if the native method declaration is overloaded: two underscores ("__") followed by the
++   escaped parameter descriptor (JVMS 4.3.3) of the method declaration.
++
++  Escaping leaves every alphanumeric ASCII character (A-Za-z0-9) unchanged, and replaces each
++  UTF-16 code unit n the table below with the corresponding escape sequence. If the name to be
++  escaped contains a surrogate pair, then the high-surrogate code unit and the low-surrogate code
++  unit are escaped separately. The result of escaping is a string consisting only of the ASCII
++  characters A-Za-z0-9 and underscore.
++
++  ------------------------------                  ------------------------------------
++  UTF-16 code unit                                Escape sequence
++  ------------------------------                  ------------------------------------
++  Forward slash (/, U+002F)                       _
++  Underscore (_, U+005F)                          _1
++  Semicolon (;, U+003B)                           _2
++  Left square bracket ([, U+005B)                 _3
++  Any UTF-16 code unit \u_WXYZ_ that does not     _0wxyz where w, x, y, and z are the lower-case
++  represent alphanumeric ASCII (A-Za-z0-9),       forms of the hexadecimal digits W, X, Y, and Z.
++  forward slash, underscore, semicolon,           (For example, U+ABCD becomes _0abcd.)
++  or left square bracket
++  ------------------------------                  ------------------------------------
++
++  Note that escape sequences can safely begin _0, _1, etc, because class and method
++  names in Java source code never begin with a number. However, that is not the case in
++  class files that were not generated from Java source code.
++
++  To preserve the 1:1 mapping to a native method name, the VM checks the resulting name as
++  follows. If the process of escaping any precursor string from the native  method declaration
++  (class or method name, or argument type) causes a "0", "1", "2", or "3" character
++  from the precursor string to appear unchanged in the result *either* immediately after an
++  underscore *or* at the beginning of the escaped string (where it will follow an underscore
++  in the fully assembled name), then the escaping process is said to have "failed".
++  In such cases, no native library search is performed, and the attempt to link the native
++  method invocation will throw UnsatisfiedLinkError.
++
++
++For example:
++
++  package/my_class/method
++
++and
++
++  package/my/1class/method
++
++both map to
++
++  Java_package_my_1class_method
++
++To address this potential conflict we need only check if the character after
++/ is a digit 0..3, or if the first character after an injected '_' seperator
++is a digit 0..3. If we encounter an invalid identifier we reset the
++stringStream and return false. Otherwise the stringStream contains the mapped
++name and we return true.
++
++To address legacy compatibility, the UseLegacyJNINameEscaping flag can be set
++which skips the extra checks.
++
++*/
++static bool map_escaped_name_on(stringStream* st, Symbol* name, int begin, int end) {
+   char* bytes = (char*)name->bytes() + begin;
+   char* end_bytes = (char*)name->bytes() + end;
++  bool check_escape_char = true; // initially true as first character here follows '_'
+   while (bytes < end_bytes) {
+     jchar c;
+     bytes = UTF8::next(bytes, &c);
+     if (c <= 0x7f && isalnum(c)) {
++      if (check_escape_char && (c >= '0' && c <= '3') &&
++          !UseLegacyJNINameEscaping) {
++        // This is a non-Java identifier and we won't escape it to
++        // ensure no name collisions with a Java identifier.
++        if (PrintJNIResolving) {
++          ResourceMark rm;
++          tty->print_cr("[Lookup of native method with non-Java identifier rejected: %s]",
++                                  name->as_C_string());
++        }
++        st->reset();  // restore to "" on error
++        return false;
++      }
+       st->put((char) c);
++      check_escape_char = false;
+     } else {
+-           if (c == '_') st->print("_1");
+-      else if (c == '/') st->print("_");
++      check_escape_char = false;
++      if (c == '_') st->print("_1");
++      else if (c == '/') {
++        st->print("_");
++        // Following a / we must have non-escape character
++        check_escape_char = true;
++      }
+       else if (c == ';') st->print("_2");
+       else if (c == '[') st->print("_3");
+       else               st->print("_%.5x", c);
+     }
+   }
++  return true;
+ }
+ 
+ 
+-static void mangle_name_on(outputStream* st, Symbol* name) {
+-  mangle_name_on(st, name, 0, name->utf8_length());
++static bool map_escaped_name_on(stringStream* st, Symbol* name) {
++  return map_escaped_name_on(st, name, 0, name->utf8_length());
+ }
+ 
+ 
+@@ -90,10 +181,14 @@
+   // Prefix
+   st.print("Java_");
+   // Klass name
+-  mangle_name_on(&st, method->klass_name());
++  if (!map_escaped_name_on(&st, method->klass_name())) {
++    return NULL;
++  }
+   st.print("_");
+   // Method name
+-  mangle_name_on(&st, method->name());
++  if (!map_escaped_name_on(&st, method->name())) {
++    return NULL;
++  }
+   return st.as_string();
+ }
+ 
+@@ -103,16 +198,20 @@
+   // Prefix
+   st.print("JavaCritical_");
+   // Klass name
+-  mangle_name_on(&st, method->klass_name());
++  if (!map_escaped_name_on(&st, method->klass_name())) {
++    return NULL;
++  }
+   st.print("_");
+   // Method name
+-  mangle_name_on(&st, method->name());
++  if (!map_escaped_name_on(&st, method->name())) {
++    return NULL;
++  }
+   return st.as_string();
+ }
+ 
+ 
+ char* NativeLookup::long_jni_name(methodHandle method) {
+-  // Signature ignore the wrapping parenteses and the trailing return type
++  // Signatures ignore the wrapping parentheses and the trailing return type
+   stringStream st;
+   Symbol* signature = method->signature();
+   st.print("__");
+@@ -120,7 +219,10 @@
+   int end;
+   for (end = 0; end < signature->utf8_length() && signature->byte_at(end) != ')'; end++);
+   // skip first '('
+-  mangle_name_on(&st, signature, 1, end);
++  if (!map_escaped_name_on(&st, signature, 1, end)) {
++    return NULL;
++  }
++
+   return st.as_string();
+ }
+ 
+@@ -247,6 +349,11 @@
+   in_base_library = false;
+   // Compute pure name
+   char* pure_name = pure_jni_name(method);
++  if (pure_name == NULL) {
++    // JNI name mapping rejected this method so return
++    // NULL to indicate UnsatisfiedLinkError should be thrown.
++    return NULL;
++  }
+ 
+   // Compute argument size
+   int args_size = 1                             // JNIEnv
+@@ -260,6 +367,11 @@
+ 
+   // Compute long name
+   char* long_name = long_jni_name(method);
++  if (long_name == NULL) {
++    // JNI name mapping rejected this method so return
++    // NULL to indicate UnsatisfiedLinkError should be thrown.
++    return NULL;
++  }
+ 
+   // 2) Try JNI long style
+   entry = lookup_style(method, pure_name, long_name, args_size, true,  in_base_library, CHECK_NULL);
+@@ -299,6 +411,11 @@
+ 
+   // Compute critical name
+   char* critical_name = critical_jni_name(method);
++  if (critical_name == NULL) {
++    // JNI name mapping rejected this method so return
++    // NULL to indicate UnsatisfiedLinkError should be thrown.
++    return NULL;
++  }
+ 
+   // Compute argument size
+   int args_size = 1                             // JNIEnv
+@@ -312,6 +429,11 @@
+ 
+   // Compute long name
+   char* long_name = long_jni_name(method);
++  if (long_name == NULL) {
++    // JNI name mapping rejected this method so return
++    // NULL to indicate UnsatisfiedLinkError should be thrown.
++    return NULL;
++  }
+ 
+   // 2) Try JNI long style
+   entry = lookup_critical_style(method, critical_name, long_name, args_size, true);
+diff --git openjdk/hotspot/src/share/vm/runtime/globals.hpp openjdk/hotspot/src/share/vm/runtime/globals.hpp
+--- openjdk/hotspot/src/share/vm/runtime/globals.hpp
++++ openjdk/hotspot/src/share/vm/runtime/globals.hpp
+@@ -706,6 +706,9 @@
+   product(bool, CriticalJNINatives, true,                                   \
+           "Check for critical JNI entry points")                            \
+                                                                             \
++  product(bool, UseLegacyJNINameEscaping, false,                            \
++          "Use the original JNI name escaping scheme")                      \
++                                                                            \
+   notproduct(bool, StressCriticalJNINatives, false,                         \
+           "Exercise register saving code in critical natives")              \
+                                                                             \
+# HG changeset patch
+# User egahlin
+# Date 1599858543 -10800
+#      Sat Sep 12 00:09:03 2020 +0300
+# Node ID cb1e375e88a9464056567cf1f419225e0a7fba13
+# Parent  d0f692037e7bdbae7e5847b51d7a55b0328ae6c1
+8236196: Improve string pooling
+Reviewed-by: mgronlun, rehn, ahgross, jwilhelm, rhalade, mbalao, andrew
+
+diff --git openjdk/hotspot/src/share/vm/jfr/writers/jfrWriterHost.inline.hpp openjdk/hotspot/src/share/vm/jfr/writers/jfrWriterHost.inline.hpp
+--- openjdk/hotspot/src/share/vm/jfr/writers/jfrWriterHost.inline.hpp
++++ openjdk/hotspot/src/share/vm/jfr/writers/jfrWriterHost.inline.hpp
+@@ -70,7 +70,8 @@
+ inline void WriterHost<BE, IE, WriterPolicyImpl>::write(const T* value, size_t len) {
+   assert(value != NULL, "invariant");
+   assert(len > 0, "invariant");
+-  u1* const pos = ensure_size(sizeof(T) * len);
++  // Might need T + 1 size
++  u1* const pos = ensure_size(sizeof(T) * len + len);
+   if (pos) {
+     this->set_current_pos(write(value, len, pos));
+   }
+@@ -124,7 +125,8 @@
+ inline void WriterHost<BE, IE, WriterPolicyImpl>::be_write(const T* value, size_t len) {
+   assert(value != NULL, "invariant");
+   assert(len > 0, "invariant");
+-  u1* const pos = ensure_size(sizeof(T) * len);
++  // Might need T + 1 size
++  u1* const pos = ensure_size(sizeof(T) * len + len);
+   if (pos) {
+     this->set_current_pos(BE::be_write(value, len, pos));
+   }
+@@ -137,10 +139,17 @@
+   _compressed_integers(compressed_integers()) {
+ }
+ 
++// Extra size added as a safety cushion when dimensioning memory.
++// With varint encoding, the worst case is
++// associated with writing negative values.
++// For example, writing a negative s1 (-1)
++// will encode as 0xff 0x0f (2 bytes).
++static const size_t size_safety_cushion = 1;
++
+ template <typename BE, typename IE, typename WriterPolicyImpl >
+ template <typename StorageType>
+ inline WriterHost<BE, IE, WriterPolicyImpl>::WriterHost(StorageType* storage, size_t size) :
+-  WriterPolicyImpl(storage, size),
++  WriterPolicyImpl(storage, size + size_safety_cushion),
+   _compressed_integers(compressed_integers()) {
+ }
+ 
+@@ -150,30 +159,19 @@
+   _compressed_integers(compressed_integers()) {
+ }
+ 
+-// Extra size added as a safety cushion when dimensioning memory.
+-// With varint encoding, the worst case is
+-// associated with writing negative values.
+-// For example, writing a negative s1 (-1)
+-// will encode as 0xff 0x0f (2 bytes).
+-// In this example, the sizeof(T) == 1 and length == 1,
+-// but the implementation will need to dimension
+-// 2 bytes for the encoding.
+-// Hopefully, negative values should be relatively rare.
+-static const size_t size_safety_cushion = 1;
+-
+ template <typename BE, typename IE, typename WriterPolicyImpl>
+-inline u1* WriterHost<BE, IE, WriterPolicyImpl>::ensure_size(size_t requested) {
++inline u1* WriterHost<BE, IE, WriterPolicyImpl>::ensure_size(size_t requested_size) {
+   if (!this->is_valid()) {
+     // cancelled
+     return NULL;
+   }
+-  if (this->available_size() < requested + size_safety_cushion) {
+-    if (!this->accommodate(this->used_size(), requested + size_safety_cushion)) {
++  if (this->available_size() < requested_size) {
++    if (!this->accommodate(this->used_size(), requested_size)) {
+       this->cancel();
+       return NULL;
+     }
+   }
+-  assert(requested + size_safety_cushion <= this->available_size(), "invariant");
++  assert(requested_size <= this->available_size(), "invariant");
+   return this->current_pos();
+ }
+ 
+# HG changeset patch
+# User vkempik
+# Date 1600863533 -10800
+#      Wed Sep 23 15:18:53 2020 +0300
+# Node ID fd3484fadbe334f5ff2a18ea56a3a0c551356a1e
+# Parent  cb1e375e88a9464056567cf1f419225e0a7fba13
+8240124: Better VM Interning
+Reviewed-by: mbalao, andrew
+
+diff --git openjdk/hotspot/src/share/vm/classfile/altHashing.cpp openjdk/hotspot/src/share/vm/classfile/altHashing.cpp
+--- openjdk/hotspot/src/share/vm/classfile/altHashing.cpp
++++ openjdk/hotspot/src/share/vm/classfile/altHashing.cpp
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
++ * Copyright (c) 2012, 2020, Oracle and/or its affiliates. All rights reserved.
+  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
+  *
+  * This code is free software; you can redistribute it and/or modify it
+@@ -22,12 +22,29 @@
+  *
+  */
+ 
++/*
++ * halfsiphash code adapted from reference implementation
++ * (https://github.com/veorq/SipHash/blob/master/halfsiphash.c)
++ * which is distributed with the following copyright:
++ *
++ * SipHash reference C implementation
++ *
++ * Copyright (c) 2016 Jean-Philippe Aumasson <jeanphilippe.aumasson@gmail.com>
++ *
++ * To the extent possible under law, the author(s) have dedicated all copyright
++ * and related and neighboring rights to this software to the public domain
++ * worldwide. This software is distributed without any warranty.
++ *
++ * You should have received a copy of the CC0 Public Domain Dedication along
++ * with this software. If not, see
++ * <http://creativecommons.org/publicdomain/zero/1.0/>.
++ */
++
+ #include "precompiled.hpp"
+ #include "classfile/altHashing.hpp"
+-#include "classfile/symbolTable.hpp"
+ #include "classfile/systemDictionary.hpp"
+ #include "oops/markOop.hpp"
+-#include "runtime/thread.hpp"
++#include "runtime/os.hpp"
+ 
+ // Get the hash code of the classes mirror if it exists, otherwise just
+ // return a random number, which is one of the possible hash code used for
+@@ -39,266 +56,284 @@
+ }
+ 
+ // Seed value used for each alternative hash calculated.
+-juint AltHashing::compute_seed() {
+-  jlong nanos = os::javaTimeNanos();
+-  jlong now = os::javaTimeMillis();
+-  int SEED_MATERIAL[8] = {
+-            (int) object_hash(SystemDictionary::String_klass()),
+-            (int) object_hash(SystemDictionary::System_klass()),
+-            (int) os::random(),  // current thread isn't a java thread
+-            (int) (((julong)nanos) >> 32),
+-            (int) nanos,
+-            (int) (((julong)now) >> 32),
+-            (int) now,
+-            (int) (os::javaTimeNanos() >> 2)
++uint64_t AltHashing::compute_seed() {
++  uint64_t nanos = os::javaTimeNanos();
++  uint64_t now = os::javaTimeMillis();
++  uint32_t SEED_MATERIAL[8] = {
++            (uint32_t) object_hash(SystemDictionary::String_klass()),
++            (uint32_t) object_hash(SystemDictionary::System_klass()),
++            (uint32_t) os::random(),  // current thread isn't a java thread
++            (uint32_t) (((uint64_t)nanos) >> 32),
++            (uint32_t) nanos,
++            (uint32_t) (((uint64_t)now) >> 32),
++            (uint32_t) now,
++            (uint32_t) (os::javaTimeNanos() >> 2)
+   };
+ 
+-  return murmur3_32(SEED_MATERIAL, 8);
++  return halfsiphash_64(SEED_MATERIAL, 8);
++}
++
++// utility function copied from java/lang/Integer
++static uint32_t Integer_rotateLeft(uint32_t i, int distance) {
++  return (i << distance) | (i >> (32 - distance));
+ }
+ 
++static void halfsiphash_rounds(uint32_t v[4], int rounds) {
++  while (rounds-- > 0) {
++    v[0] += v[1];
++    v[1] = Integer_rotateLeft(v[1], 5);
++    v[1] ^= v[0];
++    v[0] = Integer_rotateLeft(v[0], 16);
++    v[2] += v[3];
++    v[3] = Integer_rotateLeft(v[3], 8);
++    v[3] ^= v[2];
++    v[0] += v[3];
++    v[3] = Integer_rotateLeft(v[3], 7);
++    v[3] ^= v[0];
++    v[2] += v[1];
++    v[1] = Integer_rotateLeft(v[1], 13);
++    v[1] ^= v[2];
++    v[2] = Integer_rotateLeft(v[2], 16);
++  }
++ }
+ 
+-// Murmur3 hashing for Symbol
+-juint AltHashing::murmur3_32(juint seed, const jbyte* data, int len) {
+-  juint h1 = seed;
++static void halfsiphash_adddata(uint32_t v[4], uint32_t newdata, int rounds) {
++  v[3] ^= newdata;
++  halfsiphash_rounds(v, rounds);
++  v[0] ^= newdata;
++}
++
++static void halfsiphash_init32(uint32_t v[4], uint64_t seed) {
++  v[0] = seed & 0xffffffff;
++  v[1] = seed >> 32;
++  v[2] = 0x6c796765 ^ v[0];
++  v[3] = 0x74656462 ^ v[1];
++}
++
++static void halfsiphash_init64(uint32_t v[4], uint64_t seed) {
++  halfsiphash_init32(v, seed);
++  v[1] ^= 0xee;
++}
++
++static uint64_t halfsiphash_finish64(uint32_t v[4], int rounds) {
++  uint64_t rv;
++  v[2] ^= 0xee;
++  halfsiphash_rounds(v, rounds);
++  rv = v[1] ^ v[3];
++  v[1] ^= 0xdd;
++  halfsiphash_rounds(v, rounds);
++  rv |= (uint64_t)(v[1] ^ v[3]) << 32;
++  return rv;
++}
++
++// HalfSipHash-2-4 (64-bit output) for Symbols
++uint64_t AltHashing::halfsiphash_64(uint64_t seed, const int8_t* data, int len) {
++  uint32_t v[4];
++  uint32_t newdata;
++  int off = 0;
+   int count = len;
+-  int offset = 0;
+ 
++  halfsiphash_init64(v, seed);
+   // body
+   while (count >= 4) {
+-    juint k1 = (data[offset] & 0x0FF)
+-        | (data[offset + 1] & 0x0FF) << 8
+-        | (data[offset + 2] & 0x0FF) << 16
+-        | data[offset + 3] << 24;
++    // Avoid sign extension with 0x0ff
++    newdata = (data[off] & 0x0FF)
++        | (data[off + 1] & 0x0FF) << 8
++        | (data[off + 2] & 0x0FF) << 16
++        | data[off + 3] << 24;
+ 
+     count -= 4;
+-    offset += 4;
++    off += 4;
+ 
+-    k1 *= 0xcc9e2d51;
+-    k1 = Integer_rotateLeft(k1, 15);
+-    k1 *= 0x1b873593;
+-
+-    h1 ^= k1;
+-    h1 = Integer_rotateLeft(h1, 13);
+-    h1 = h1 * 5 + 0xe6546b64;
++    halfsiphash_adddata(v, newdata, 2);
+   }
+ 
+   // tail
++  newdata = ((uint32_t)len) << 24; // (Byte.SIZE / Byte.SIZE);
+ 
+   if (count > 0) {
+-    juint k1 = 0;
+-
+     switch (count) {
+       case 3:
+-        k1 ^= (data[offset + 2] & 0xff) << 16;
++        newdata |= (data[off + 2] & 0x0ff) << 16;
+       // fall through
+       case 2:
+-        k1 ^= (data[offset + 1] & 0xff) << 8;
++        newdata |= (data[off + 1] & 0x0ff) << 8;
+       // fall through
+       case 1:
+-        k1 ^= (data[offset] & 0xff);
++        newdata |= (data[off] & 0x0ff);
+       // fall through
+-      default:
+-        k1 *= 0xcc9e2d51;
+-        k1 = Integer_rotateLeft(k1, 15);
+-        k1 *= 0x1b873593;
+-        h1 ^= k1;
+     }
+   }
+ 
+-  // finalization
+-  h1 ^= len;
++  halfsiphash_adddata(v, newdata, 2);
+ 
+-  // finalization mix force all bits of a hash block to avalanche
+-  h1 ^= h1 >> 16;
+-  h1 *= 0x85ebca6b;
+-  h1 ^= h1 >> 13;
+-  h1 *= 0xc2b2ae35;
+-  h1 ^= h1 >> 16;
+-
+-  return h1;
++  // finalization
++  return halfsiphash_finish64(v, 4);
+ }
+ 
+-// Murmur3 hashing for Strings
+-juint AltHashing::murmur3_32(juint seed, const jchar* data, int len) {
+-  juint h1 = seed;
+-
++// HalfSipHash-2-4 (64-bit output) for Strings
++uint64_t AltHashing::halfsiphash_64(uint64_t seed, const uint16_t* data, int len) {
++  uint32_t v[4];
++  uint32_t newdata;
+   int off = 0;
+   int count = len;
+ 
++  halfsiphash_init64(v, seed);
++
+   // body
+   while (count >= 2) {
+-    jchar d1 = data[off++] & 0xFFFF;
+-    jchar d2 = data[off++];
+-    juint k1 = (d1 | d2 << 16);
++    uint16_t d1 = data[off++] & 0x0FFFF;
++    uint16_t d2 = data[off++];
++    newdata = (d1 | d2 << 16);
+ 
+     count -= 2;
+ 
+-    k1 *= 0xcc9e2d51;
+-    k1 = Integer_rotateLeft(k1, 15);
+-    k1 *= 0x1b873593;
+-
+-    h1 ^= k1;
+-    h1 = Integer_rotateLeft(h1, 13);
+-    h1 = h1 * 5 + 0xe6546b64;
++    halfsiphash_adddata(v, newdata, 2);
+   }
+ 
+   // tail
+-
++  newdata = ((uint32_t)len * 2) << 24; // (Character.SIZE / Byte.SIZE);
+   if (count > 0) {
+-    juint k1 = (juint)data[off];
+-
+-    k1 *= 0xcc9e2d51;
+-    k1 = Integer_rotateLeft(k1, 15);
+-    k1 *= 0x1b873593;
+-    h1 ^= k1;
++    newdata |= (uint32_t)data[off];
+   }
++  halfsiphash_adddata(v, newdata, 2);
+ 
+   // finalization
+-  h1 ^= len * 2; // (Character.SIZE / Byte.SIZE);
+-
+-  // finalization mix force all bits of a hash block to avalanche
+-  h1 ^= h1 >> 16;
+-  h1 *= 0x85ebca6b;
+-  h1 ^= h1 >> 13;
+-  h1 *= 0xc2b2ae35;
+-  h1 ^= h1 >> 16;
+-
+-  return h1;
++  return halfsiphash_finish64(v, 4);
+ }
+ 
+-// Hash used for the seed.
+-juint AltHashing::murmur3_32(juint seed, const int* data, int len) {
+-  juint h1 = seed;
++// HalfSipHash-2-4 (64-bit output) for integers (used to create seed)
++uint64_t AltHashing::halfsiphash_64(uint64_t seed, const uint32_t* data, int len) {
++  uint32_t v[4];
+ 
+   int off = 0;
+   int end = len;
+ 
++  halfsiphash_init64(v, seed);
++
+   // body
+   while (off < end) {
+-    juint k1 = (juint)data[off++];
+-
+-    k1 *= 0xcc9e2d51;
+-    k1 = Integer_rotateLeft(k1, 15);
+-    k1 *= 0x1b873593;
+-
+-    h1 ^= k1;
+-    h1 = Integer_rotateLeft(h1, 13);
+-    h1 = h1 * 5 + 0xe6546b64;
++    halfsiphash_adddata(v, (uint32_t)data[off++], 2);
+   }
+ 
+   // tail (always empty, as body is always 32-bit chunks)
+ 
+   // finalization
+-
+-  h1 ^= len * 4; // (Integer.SIZE / Byte.SIZE);
+-
+-  // finalization mix force all bits of a hash block to avalanche
+-  h1 ^= h1 >> 16;
+-  h1 *= 0x85ebca6b;
+-  h1 ^= h1 >> 13;
+-  h1 *= 0xc2b2ae35;
+-  h1 ^= h1 >> 16;
+-
+-  return h1;
++  halfsiphash_adddata(v, ((uint32_t)len * 4) << 24, 2); // (Integer.SIZE / Byte.SIZE);
++  return halfsiphash_finish64(v, 4);
+ }
+ 
+-juint AltHashing::murmur3_32(const int* data, int len) {
+-  return murmur3_32(0, data, len);
++// HalfSipHash-2-4 (64-bit output) for integers (used to create seed)
++uint64_t AltHashing::halfsiphash_64(const uint32_t* data, int len) {
++  return halfsiphash_64((uint64_t)0, data, len);
+ }
+ 
+ #ifndef PRODUCT
+-// Overloaded versions for internal test.
+-juint AltHashing::murmur3_32(const jbyte* data, int len) {
+-  return murmur3_32(0, data, len);
+-}
++  void AltHashing::testHalfsiphash_64_ByteArray() {
++    // printf("testHalfsiphash_64_CharArray\n");
++    const int factor = 4;
+ 
+-juint AltHashing::murmur3_32(const jchar* data, int len) {
+-  return murmur3_32(0, data, len);
+-}
++    int8_t vector[256];
++    int8_t hashes[factor * 256];
++
++    for (int i = 0; i < 256; i++) {
++      vector[i] = (int8_t) i;
++    }
+ 
+-// Internal test for alternate hashing.  Translated from JDK version
+-// test/sun/misc/Hashing.java
+-static const jbyte ONE_BYTE[] = { (jbyte) 0x80};
+-static const jbyte TWO_BYTE[] = { (jbyte) 0x80, (jbyte) 0x81};
+-static const jchar ONE_CHAR[] = { (jchar) 0x8180};
+-static const jbyte THREE_BYTE[] = { (jbyte) 0x80, (jbyte) 0x81, (jbyte) 0x82};
+-static const jbyte FOUR_BYTE[] = { (jbyte) 0x80, (jbyte) 0x81, (jbyte) 0x82, (jbyte) 0x83};
+-static const jchar TWO_CHAR[] = { (jchar) 0x8180, (jchar) 0x8382};
+-static const jint ONE_INT[] = { (jint) 0x83828180};
+-static const jbyte SIX_BYTE[] = { (jbyte) 0x80, (jbyte) 0x81, (jbyte) 0x82, (jbyte) 0x83, (jbyte) 0x84, (jbyte) 0x85};
+-static const jchar THREE_CHAR[] = { (jchar) 0x8180, (jchar) 0x8382, (jchar) 0x8584};
+-static const jbyte EIGHT_BYTE[] = {
+-  (jbyte) 0x80, (jbyte) 0x81, (jbyte) 0x82,
+-  (jbyte) 0x83, (jbyte) 0x84, (jbyte) 0x85,
+-  (jbyte) 0x86, (jbyte) 0x87};
+-static const jchar FOUR_CHAR[] = {
+-  (jchar) 0x8180, (jchar) 0x8382,
+-  (jchar) 0x8584, (jchar) 0x8786};
++    // Hash subranges {}, {0}, {0,1}, {0,1,2}, ..., {0,...,255}
++    for (int i = 0; i < 256; i++) {
++      uint64_t hash = AltHashing::halfsiphash_64(256 - i, vector, i);
++      hashes[i * factor] = (int8_t) hash;
++      hashes[i * factor + 1] = (int8_t)(hash >> 8);
++      hashes[i * factor + 2] = (int8_t)(hash >> 16);
++      hashes[i * factor + 3] = (int8_t)(hash >> 24);
++    }
++
++    // hash to get const result.
++    uint64_t final_hash = AltHashing::halfsiphash_64(0, hashes, factor*256);
+ 
+-static const jint TWO_INT[] = { (jint) 0x83828180, (jint) 0x87868584};
++    // Value found using reference implementation for the hashes array.
++    // halfsiphash((const uint8_t*)hashes, factor*256, (const uint8_t *)&k,
++    //             (uint8_t*)&reference, 8);
+ 
+-static const juint MURMUR3_32_X86_CHECK_VALUE = 0xB0F57EE3;
++    static const uint64_t HALFSIPHASH_64_BYTE_CHECK_VALUE = 0x15a7911e30917ee8;
+ 
+-void AltHashing::testMurmur3_32_ByteArray() {
+-  // printf("testMurmur3_32_ByteArray\n");
+-
+-  jbyte vector[256];
+-  jbyte hashes[4 * 256];
+-
+-  for (int i = 0; i < 256; i++) {
+-    vector[i] = (jbyte) i;
++    assert (HALFSIPHASH_64_BYTE_CHECK_VALUE == final_hash,
++      err_msg(
++          "Calculated hash result not as expected. Expected " UINT64_FORMAT " got " UINT64_FORMAT,
++          HALFSIPHASH_64_BYTE_CHECK_VALUE,
++          final_hash));
+   }
+ 
+-  // Hash subranges {}, {0}, {0,1}, {0,1,2}, ..., {0,...,255}
+-  for (int i = 0; i < 256; i++) {
+-    juint hash = murmur3_32(256 - i, vector, i);
+-    hashes[i * 4] = (jbyte) hash;
+-    hashes[i * 4 + 1] = (jbyte)(hash >> 8);
+-    hashes[i * 4 + 2] = (jbyte)(hash >> 16);
+-    hashes[i * 4 + 3] = (jbyte)(hash >> 24);
++  void AltHashing::testHalfsiphash_64_CharArray() {
++    // printf("testHalfsiphash_64_CharArray\n");
++    const int factor = 2;
++
++    uint16_t vector[256];
++    uint16_t hashes[factor * 256];
++
++    for (int i = 0; i < 256; i++) {
++      vector[i] = (uint16_t) i;
++    }
++
++    // Hash subranges {}, {0}, {0,1}, {0,1,2}, ..., {0,...,255}
++    for (int i = 0; i < 256; i++) {
++      uint64_t hash = AltHashing::halfsiphash_64(256 - i, vector, i);
++      hashes[i * factor] = (uint16_t) hash;
++      hashes[i * factor + 1] = (uint16_t)(hash >> 16);
++    }
++
++    // hash to get const result.
++    uint64_t final_hash = AltHashing::halfsiphash_64(0, hashes, factor*256);
++
++    // Value found using reference implementation for the hashes array.
++    // halfsiphash((const uint8_t*)hashes, 2*factor*256, (const uint8_t *)&k,
++    //             (uint8_t*)&reference, 8);
++    static const uint64_t HALFSIPHASH_64_CHAR_CHECK_VALUE = 0xf392d8a6a9e24103;
++
++    assert(HALFSIPHASH_64_CHAR_CHECK_VALUE == final_hash,
++      err_msg(
++          "Calculated hash result not as expected. Expected " UINT64_FORMAT " got " UINT64_FORMAT,
++          HALFSIPHASH_64_CHAR_CHECK_VALUE,
++          final_hash));
+   }
+ 
+-  // hash to get const result.
+-  juint final_hash = murmur3_32(hashes, 4*256);
+-
+-  assert (MURMUR3_32_X86_CHECK_VALUE == final_hash,
+-    err_msg(
+-        "Calculated hash result not as expected. Expected %08X got %08X\n",
+-        MURMUR3_32_X86_CHECK_VALUE,
+-        final_hash));
+-}
++  // Test against sample hashes published with the reference implementation:
++  // https://github.com/veorq/SipHash
++  void AltHashing::testHalfsiphash_64_FromReference() {
++    // printf("testHalfsiphash_64_FromReference\n");
+ 
+-void AltHashing::testEquivalentHashes() {
+-  juint jbytes, jchars, ints;
+-
+-  // printf("testEquivalentHashes\n");
+-
+-  jbytes = murmur3_32(TWO_BYTE, 2);
+-  jchars = murmur3_32(ONE_CHAR, 1);
+-  assert (jbytes == jchars,
+-    err_msg("Hashes did not match. b:%08x != c:%08x\n", jbytes, jchars));
++    const uint64_t seed = 0x0706050403020100;
++    const uint64_t results[16] = {
++              0xc83cb8b9591f8d21, 0xa12ee55b178ae7d5,
++              0x8c85e4bc20e8feed, 0x99c7f5ae9f1fc77b,
++              0xb5f37b5fd2aa3673, 0xdba7ee6f0a2bf51b,
++              0xf1a63fae45107470, 0xb516001efb5f922d,
++              0x6c6211d8469d7028, 0xdc7642ec407ad686,
++              0x4caec8671cc8385b, 0x5ab1dc27adf3301e,
++              0x3e3ea94bc0a8eaa9, 0xe150f598795a4402,
++              0x1d5ff142f992a4a1, 0x60e426bf902876d6
++    };
++    uint32_t vector[16];
+ 
+-  jbytes = murmur3_32(FOUR_BYTE, 4);
+-  jchars = murmur3_32(TWO_CHAR, 2);
+-  ints = murmur3_32(ONE_INT, 1);
+-  assert ((jbytes == jchars) && (jbytes == ints),
+-    err_msg("Hashes did not match. b:%08x != c:%08x != i:%08x\n", jbytes, jchars, ints));
+-
+-  jbytes = murmur3_32(SIX_BYTE, 6);
+-  jchars = murmur3_32(THREE_CHAR, 3);
+-  assert (jbytes == jchars,
+-    err_msg("Hashes did not match. b:%08x != c:%08x\n", jbytes, jchars));
++    for (int i = 0; i < 16; i++)
++      vector[i] = 0x03020100 + i * 0x04040404;
+ 
+-  jbytes = murmur3_32(EIGHT_BYTE, 8);
+-  jchars = murmur3_32(FOUR_CHAR, 4);
+-  ints = murmur3_32(TWO_INT, 2);
+-  assert ((jbytes == jchars) && (jbytes == ints),
+-    err_msg("Hashes did not match. b:%08x != c:%08x != i:%08x\n", jbytes, jchars, ints));
+-}
++    for (int i = 0; i < 16; i++) {
++      uint64_t hash = AltHashing::halfsiphash_64(seed, vector, i);
++      assert(results[i] == hash,
++        err_msg(
++            "Calculated hash result not as expected. Round %d: "
++            "Expected " UINT64_FORMAT_X " got " UINT64_FORMAT_X "\n",
++            i,
++            results[i],
++            hash));
++    }
++  }
+ 
+-// Returns true if the alternate hashcode is correct
+ void AltHashing::test_alt_hash() {
+-  testMurmur3_32_ByteArray();
+-  testEquivalentHashes();
++  testHalfsiphash_64_ByteArray();
++  testHalfsiphash_64_CharArray();
++  testHalfsiphash_64_FromReference();
+ }
+ #endif // PRODUCT
+diff --git openjdk/hotspot/src/share/vm/classfile/altHashing.hpp openjdk/hotspot/src/share/vm/classfile/altHashing.hpp
+--- openjdk/hotspot/src/share/vm/classfile/altHashing.hpp
++++ openjdk/hotspot/src/share/vm/classfile/altHashing.hpp
+@@ -26,37 +26,30 @@
+ #define SHARE_VM_CLASSFILE_ALTHASHING_HPP
+ 
+ #include "prims/jni.h"
+-#include "classfile/symbolTable.hpp"
++#include "memory/allocation.hpp"
+ 
+ /**
+- * Hashing utilities.
+- *
+- * Implementation of Murmur3 hashing.
+- * This code was translated from src/share/classes/sun/misc/Hashing.java
+- * code in the JDK.
++ * Implementation of alternate more secure hashing.
+  */
+ 
+ class AltHashing : AllStatic {
+ 
+-  // utility function copied from java/lang/Integer
+-  static juint Integer_rotateLeft(juint i, int distance) {
+-    return (i << distance) | (i >> (32-distance));
+-  }
+-  static juint murmur3_32(const int* data, int len);
+-  static juint murmur3_32(juint seed, const int* data, int len);
++  // For the seed computation
++  static uint64_t halfsiphash_64(const uint32_t* data, int len);
++  static uint64_t halfsiphash_64(uint64_t seed, const uint32_t* data, int len);
++ #ifndef PRODUCT
++   // Hashing functions used for internal testing
++  static void testHalfsiphash_64_ByteArray();
++  static void testHalfsiphash_64_CharArray();
++  static void testHalfsiphash_64_FromReference();
++ #endif // PRODUCT
++ public:
++  static uint64_t compute_seed();
+ 
+-#ifndef PRODUCT
+-  // Hashing functions used for internal testing
+-  static juint murmur3_32(const jbyte* data, int len);
+-  static juint murmur3_32(const jchar* data, int len);
+-  static void testMurmur3_32_ByteArray();
+-  static void testEquivalentHashes();
+-#endif // PRODUCT
+-
+- public:
+-  static juint compute_seed();
+-  static juint murmur3_32(juint seed, const jbyte* data, int len);
+-  static juint murmur3_32(juint seed, const jchar* data, int len);
++  // For Symbols
++  static uint64_t halfsiphash_64(uint64_t seed, const int8_t* data, int len);
++  // For Strings
++  static uint64_t halfsiphash_64(uint64_t seed, const uint16_t* data, int len);
+   NOT_PRODUCT(static void test_alt_hash();)
+ };
+ #endif // SHARE_VM_CLASSFILE_ALTHASHING_HPP
+diff --git openjdk/hotspot/src/share/vm/classfile/symbolTable.cpp openjdk/hotspot/src/share/vm/classfile/symbolTable.cpp
+--- openjdk/hotspot/src/share/vm/classfile/symbolTable.cpp
++++ openjdk/hotspot/src/share/vm/classfile/symbolTable.cpp
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
++ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
+  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
+  *
+  * This code is free software; you can redistribute it and/or modify it
+@@ -224,7 +224,7 @@
+ // Pick hashing algorithm.
+ unsigned int SymbolTable::hash_symbol(const char* s, int len) {
+   return use_alternate_hashcode() ?
+-           AltHashing::murmur3_32(seed(), (const jbyte*)s, len) :
++           AltHashing::halfsiphash_64(seed(), (const int8_t*)s, len) :
+            java_lang_String::hash_code(s, len);
+ }
+ 
+@@ -650,7 +650,7 @@
+ 
+ // Pick hashing algorithm
+ unsigned int StringTable::hash_string(const jchar* s, int len) {
+-  return use_alternate_hashcode() ? AltHashing::murmur3_32(seed(), s, len) :
++  return use_alternate_hashcode() ? AltHashing::halfsiphash_64(seed(), s, len) :
+                                     java_lang_String::hash_code(s, len);
+ }
+ 
+diff --git openjdk/hotspot/src/share/vm/gc_implementation/g1/g1StringDedupTable.cpp openjdk/hotspot/src/share/vm/gc_implementation/g1/g1StringDedupTable.cpp
+--- openjdk/hotspot/src/share/vm/gc_implementation/g1/g1StringDedupTable.cpp
++++ openjdk/hotspot/src/share/vm/gc_implementation/g1/g1StringDedupTable.cpp
+@@ -150,7 +150,7 @@
+   assert(worker_id < _nlists, "Invalid worker id");
+ 
+   entry->set_obj(NULL);
+-  entry->set_hash(0);
++  entry->set_java_hash(0);
+ 
+   if (_cached[worker_id].length() < _max_list_length) {
+     // Cache is not full
+@@ -215,7 +215,7 @@
+ uintx                    G1StringDedupTable::_resize_count = 0;
+ uintx                    G1StringDedupTable::_rehash_count = 0;
+ 
+-G1StringDedupTable::G1StringDedupTable(size_t size, jint hash_seed) :
++G1StringDedupTable::G1StringDedupTable(size_t size, uint64_t hash_seed) :
+   _size(size),
+   _entries(0),
+   _grow_threshold((uintx)(size * _grow_load_factor)),
+@@ -237,10 +237,14 @@
+   _table = new G1StringDedupTable(_min_size);
+ }
+ 
+-void G1StringDedupTable::add(typeArrayOop value, unsigned int hash, G1StringDedupEntry** list) {
++void G1StringDedupTable::add(typeArrayOop value, uint64_t hash, G1StringDedupEntry** list) {
+   G1StringDedupEntry* entry = _entry_cache->alloc();
+   entry->set_obj(value);
+-  entry->set_hash(hash);
++  if (use_java_hash()) {
++    entry->set_java_hash((unsigned int)hash);
++  } else {
++    entry->set_alt_hash(hash);
++  }
+   entry->set_next(*list);
+   *list = entry;
+   _entries++;
+@@ -255,7 +259,7 @@
+ void G1StringDedupTable::transfer(G1StringDedupEntry** pentry, G1StringDedupTable* dest) {
+   G1StringDedupEntry* entry = *pentry;
+   *pentry = entry->next();
+-  unsigned int hash = entry->hash();
++  uint64_t hash = use_java_hash() ? entry->java_hash() : entry->alt_hash();
+   size_t index = dest->hash_to_index(hash);
+   G1StringDedupEntry** list = dest->bucket(index);
+   entry->set_next(*list);
+@@ -270,10 +274,10 @@
+                     value1->length() * sizeof(jchar)))));
+ }
+ 
+-typeArrayOop G1StringDedupTable::lookup(typeArrayOop value, unsigned int hash,
++typeArrayOop G1StringDedupTable::lookup(typeArrayOop value, uint64_t hash,
+                                         G1StringDedupEntry** list, uintx &count) {
+   for (G1StringDedupEntry* entry = *list; entry != NULL; entry = entry->next()) {
+-    if (entry->hash() == hash) {
++    if ((use_java_hash() ? entry->java_hash() : entry->alt_hash()) == hash) {
+       typeArrayOop existing_value = entry->obj();
+       if (equals(value, existing_value)) {
+         // Match found
+@@ -287,7 +291,7 @@
+   return NULL;
+ }
+ 
+-typeArrayOop G1StringDedupTable::lookup_or_add_inner(typeArrayOop value, unsigned int hash) {
++typeArrayOop G1StringDedupTable::lookup_or_add_inner(typeArrayOop value, uint64_t hash) {
+   size_t index = hash_to_index(hash);
+   G1StringDedupEntry** list = bucket(index);
+   uintx count = 0;
+@@ -311,20 +315,25 @@
+   return existing_value;
+ }
+ 
+-unsigned int G1StringDedupTable::hash_code(typeArrayOop value) {
++unsigned int G1StringDedupTable::java_hash_code(typeArrayOop value) {
++  assert(use_java_hash(), "Should not use java hash code");
+   unsigned int hash;
+   int length = value->length();
+   const jchar* data = (jchar*)value->base(T_CHAR);
+ 
+-  if (use_java_hash()) {
+-    hash = java_lang_String::hash_code(data, length);
+-  } else {
+-    hash = AltHashing::murmur3_32(_table->_hash_seed, data, length);
+-  }
++  hash = java_lang_String::hash_code(data, length);
+ 
+   return hash;
+ }
+ 
++uint64_t G1StringDedupTable::alt_hash_code(typeArrayOop value) {
++  assert(!use_java_hash(), "Should not use alt hash code");
++
++  int length = value->length();
++  const jbyte* data = (jbyte*)value->base(T_BYTE);
++  return AltHashing::halfsiphash_64(_table->_hash_seed, (const int8_t*)data, length);
++}
++
+ void G1StringDedupTable::deduplicate(oop java_string, G1StringDedupStat& stat) {
+   assert(java_lang_String::is_instance(java_string), "Must be a string");
+   No_Safepoint_Verifier nsv;
+@@ -338,7 +347,7 @@
+     return;
+   }
+ 
+-  unsigned int hash = 0;
++  uint64_t hash = 0;
+ 
+   if (use_java_hash()) {
+     // Get hash code from cache
+@@ -347,7 +356,7 @@
+ 
+   if (hash == 0) {
+     // Compute hash
+-    hash = hash_code(value);
++    hash = alt_hash_code(value);
+     stat.inc_hashed();
+   }
+ 
+@@ -501,8 +510,9 @@
+             // destination partitions. finish_rehash() will do a single
+             // threaded transfer of all entries.
+             typeArrayOop value = (typeArrayOop)*p;
+-            unsigned int hash = hash_code(value);
+-            (*entry)->set_hash(hash);
++            assert(!use_java_hash(), "Should not be using Java hash");
++            uint64_t hash = alt_hash_code(value);
++            (*entry)->set_alt_hash(hash);
+           }
+ 
+           // Move to next entry
+@@ -565,8 +575,14 @@
+       guarantee(Universe::heap()->is_in_reserved(value), "Object must be on the heap");
+       guarantee(!value->is_forwarded(), "Object must not be forwarded");
+       guarantee(value->is_typeArray(), "Object must be a typeArrayOop");
+-      unsigned int hash = hash_code(value);
+-      guarantee((*entry)->hash() == hash, "Table entry has inorrect hash");
++      uint64_t hash;
++      if (use_java_hash()) {
++        hash = (*entry)->java_hash();
++        guarantee(java_hash_code(value) == hash, "Table entry has incorrect hash");
++      } else {
++        hash = (*entry)->alt_hash();
++        guarantee(alt_hash_code(value) == hash, "Table entry has incorrect hash");
++      }
+       guarantee(_table->hash_to_index(hash) == bucket, "Table entry has incorrect index");
+       entry = (*entry)->next_addr();
+     }
+@@ -581,7 +597,10 @@
+       G1StringDedupEntry** entry2 = (*entry1)->next_addr();
+       while (*entry2 != NULL) {
+         typeArrayOop value2 = (*entry2)->obj();
+-        guarantee(!equals(value1, value2), "Table entries must not have identical arrays");
++        guarantee(value1 != value2, "Table entries must not have the same array");
++        if (use_java_hash()) {
++          guarantee(!equals(value1, value2), "Table entries must not have identical arrays");
++        }
+         entry2 = (*entry2)->next_addr();
+       }
+       entry1 = (*entry1)->next_addr();
+@@ -600,7 +619,7 @@
+     "      [Size: " SIZE_FORMAT ", Min: " SIZE_FORMAT ", Max: " SIZE_FORMAT "]\n"
+     "      [Entries: " UINTX_FORMAT ", Load: " G1_STRDEDUP_PERCENT_FORMAT_NS ", Cached: " UINTX_FORMAT ", Added: " UINTX_FORMAT ", Removed: " UINTX_FORMAT "]\n"
+     "      [Resize Count: " UINTX_FORMAT ", Shrink Threshold: " UINTX_FORMAT "(" G1_STRDEDUP_PERCENT_FORMAT_NS "), Grow Threshold: " UINTX_FORMAT "(" G1_STRDEDUP_PERCENT_FORMAT_NS ")]\n"
+-    "      [Rehash Count: " UINTX_FORMAT ", Rehash Threshold: " UINTX_FORMAT ", Hash Seed: 0x%x]\n"
++    "      [Rehash Count: " UINTX_FORMAT ", Rehash Threshold: " UINTX_FORMAT ", Hash Seed: " UINT64_FORMAT_X "]\n"
+     "      [Age Threshold: " UINTX_FORMAT "]",
+     G1_STRDEDUP_BYTES_PARAM(_table->_size * sizeof(G1StringDedupEntry*) + (_table->_entries + _entry_cache->size()) * sizeof(G1StringDedupEntry)),
+     _table->_size, _min_size, _max_size,
+diff --git openjdk/hotspot/src/share/vm/gc_implementation/g1/g1StringDedupTable.hpp openjdk/hotspot/src/share/vm/gc_implementation/g1/g1StringDedupTable.hpp
+--- openjdk/hotspot/src/share/vm/gc_implementation/g1/g1StringDedupTable.hpp
++++ openjdk/hotspot/src/share/vm/gc_implementation/g1/g1StringDedupTable.hpp
+@@ -38,8 +38,10 @@
+ class G1StringDedupEntry : public CHeapObj<mtGC> {
+ private:
+   G1StringDedupEntry* _next;
+-  unsigned int      _hash;
+-  typeArrayOop      _obj;
++  uint64_t            _hash;
++  typeArrayOop        _obj;
++
++  static const uint64_t java_hash_mask = ((uint64_t)1 << 32) - 1;
+ 
+ public:
+   G1StringDedupEntry() :
+@@ -60,11 +62,19 @@
+     _next = next;
+   }
+ 
+-  unsigned int hash() {
++  unsigned int java_hash() {
++    return (unsigned int)(_hash & java_hash_mask);
++  }
++
++  void set_java_hash(unsigned int hash) {
++    _hash = hash;
++  }
++
++  uint64_t alt_hash() {
+     return _hash;
+   }
+ 
+-  void set_hash(unsigned int hash) {
++  void set_alt_hash(uint64_t hash) {
+     _hash = hash;
+   }
+ 
+@@ -119,8 +129,8 @@
+   // The hash seed also dictates which hash function to use. A
+   // zero hash seed means we will use the Java compatible hash
+   // function (which doesn't use a seed), and a non-zero hash
+-  // seed means we use the murmur3 hash function.
+-  jint                            _hash_seed;
++  // seed means we use the alternate and better hash function.
++  uint64_t                        _hash_seed;
+ 
+   // Constants governing table resize/rehash/cache.
+   static const size_t             _min_size;
+@@ -137,7 +147,7 @@
+   static uintx                    _resize_count;
+   static uintx                    _rehash_count;
+ 
+-  G1StringDedupTable(size_t size, jint hash_seed = 0);
++  G1StringDedupTable(size_t size, uint64_t hash_seed = 0);
+   ~G1StringDedupTable();
+ 
+   // Returns the hash bucket at the given index.
+@@ -146,12 +156,12 @@
+   }
+ 
+   // Returns the hash bucket index for the given hash code.
+-  size_t hash_to_index(unsigned int hash) {
++  size_t hash_to_index(uint64_t hash) {
+     return (size_t)hash & (_size - 1);
+   }
+ 
+   // Adds a new table entry to the given hash bucket.
+-  void add(typeArrayOop value, unsigned int hash, G1StringDedupEntry** list);
++  void add(typeArrayOop value, uint64_t hash, G1StringDedupEntry** list);
+ 
+   // Removes the given table entry from the table.
+   void remove(G1StringDedupEntry** pentry, uint worker_id);
+@@ -161,15 +171,15 @@
+ 
+   // Returns an existing character array in the given hash bucket, or NULL
+   // if no matching character array exists.
+-  typeArrayOop lookup(typeArrayOop value, unsigned int hash,
++  typeArrayOop lookup(typeArrayOop value, uint64_t hash,
+                       G1StringDedupEntry** list, uintx &count);
+ 
+   // Returns an existing character array in the table, or inserts a new
+   // table entry if no matching character array exists.
+-  typeArrayOop lookup_or_add_inner(typeArrayOop value, unsigned int hash);
++  typeArrayOop lookup_or_add_inner(typeArrayOop value, uint64_t hash);
+ 
+   // Thread safe lookup or add of table entry
+-  static typeArrayOop lookup_or_add(typeArrayOop value, unsigned int hash) {
++  static typeArrayOop lookup_or_add(typeArrayOop value, uint64_t hash) {
+     // Protect the table from concurrent access. Also note that this lock
+     // acts as a fence for _table, which could have been replaced by a new
+     // instance if the table was resized or rehashed.
+@@ -187,7 +197,8 @@
+ 
+   // Computes the hash code for the given character array, using the
+   // currently active hash function and hash seed.
+-  static unsigned int hash_code(typeArrayOop value);
++  static unsigned int java_hash_code(typeArrayOop value);
++  static uint64_t alt_hash_code(typeArrayOop value);
+ 
+   static uintx unlink_or_oops_do(G1StringDedupUnlinkOrOopsDoClosure* cl,
+                                  size_t partition_begin,
+diff --git openjdk/hotspot/src/share/vm/memory/filemap.cpp openjdk/hotspot/src/share/vm/memory/filemap.cpp
+--- openjdk/hotspot/src/share/vm/memory/filemap.cpp
++++ openjdk/hotspot/src/share/vm/memory/filemap.cpp
+@@ -125,13 +125,13 @@
+   } else {
+     // Get the hash value.  Use a static seed because the hash needs to return the same
+     // value over multiple jvm invocations.
+-    unsigned int hash = AltHashing::murmur3_32(8191, (const jbyte*)vm_version, version_len);
++    uint64_t hash = AltHashing::halfsiphash_64(8191, (const int8_t*)vm_version, version_len);
+ 
+-    // Truncate the ident, saving room for the 8 hex character hash value.
+-    strncpy(header_version, vm_version, JVM_IDENT_MAX-9);
++    // Truncate the ident, saving room for the 16 hex character hash value.
++    strncpy(header_version, vm_version, JVM_IDENT_MAX-17);
+ 
+-    // Append the hash code as eight hex digits.
+-    sprintf(&header_version[JVM_IDENT_MAX-9], "%08x", hash);
++    // Append the hash code as 16 hex digits.
++    sprintf(&header_version[JVM_IDENT_MAX-17], "%016" PRIx64, hash);
+     header_version[JVM_IDENT_MAX-1] = 0;  // Null terminate.
+   }
+ }
+diff --git openjdk/hotspot/src/share/vm/oops/oop.cpp openjdk/hotspot/src/share/vm/oops/oop.cpp
+--- openjdk/hotspot/src/share/vm/oops/oop.cpp
++++ openjdk/hotspot/src/share/vm/oops/oop.cpp
+@@ -111,7 +111,7 @@
+   jchar* chars = java_lang_String::as_unicode_string(this, length, THREAD);
+   if (chars != NULL) {
+     // Use alternate hashing algorithm on the string
+-    return AltHashing::murmur3_32(seed, chars, length);
++    return AltHashing::halfsiphash_64(seed, chars, length);
+   } else {
+     vm_exit_out_of_memory(length, OOM_MALLOC_ERROR, "unable to create Unicode strings for String table rehash");
+     return 0;
+diff --git openjdk/hotspot/src/share/vm/oops/symbol.cpp openjdk/hotspot/src/share/vm/oops/symbol.cpp
+--- openjdk/hotspot/src/share/vm/oops/symbol.cpp
++++ openjdk/hotspot/src/share/vm/oops/symbol.cpp
+@@ -210,7 +210,7 @@
+ unsigned int Symbol::new_hash(juint seed) {
+   ResourceMark rm;
+   // Use alternate hashing algorithm on this symbol.
+-  return AltHashing::murmur3_32(seed, (const jbyte*)as_C_string(), utf8_length());
++  return AltHashing::halfsiphash_64(seed, (const int8_t*)as_C_string(), utf8_length());
+ }
+ 
+ void Symbol::increment_refcount() {
+# HG changeset patch
+# User vkempik
+# Date 1600867580 -10800
+#      Wed Sep 23 16:26:20 2020 +0300
+# Node ID 8adf45218addf325d7947dcd01a2a3d16711765a
+# Parent  fd3484fadbe334f5ff2a18ea56a3a0c551356a1e
+8244955: Additional Fix for JDK-8240124
+Reviewed-by: mbalao, andrew
+
+diff --git openjdk/hotspot/src/share/vm/classfile/altHashing.cpp openjdk/hotspot/src/share/vm/classfile/altHashing.cpp
+--- openjdk/hotspot/src/share/vm/classfile/altHashing.cpp
++++ openjdk/hotspot/src/share/vm/classfile/altHashing.cpp
+@@ -115,6 +115,12 @@
+   v[1] ^= 0xee;
+ }
+ 
++uint32_t halfsiphash_finish32(uint32_t v[4], int rounds) {
++  v[2] ^= 0xff;
++  halfsiphash_rounds(v, rounds);
++  return (v[1] ^ v[3]);
++}
++
+ static uint64_t halfsiphash_finish64(uint32_t v[4], int rounds) {
+   uint64_t rv;
+   v[2] ^= 0xee;
+@@ -126,14 +132,14 @@
+   return rv;
+ }
+ 
+-// HalfSipHash-2-4 (64-bit output) for Symbols
+-uint64_t AltHashing::halfsiphash_64(uint64_t seed, const int8_t* data, int len) {
++// HalfSipHash-2-4 (32-bit output) for Symbols
++uint32_t AltHashing::halfsiphash_32(uint64_t seed, const uint8_t* data, int len) {
+   uint32_t v[4];
+   uint32_t newdata;
+   int off = 0;
+   int count = len;
+ 
+-  halfsiphash_init64(v, seed);
++  halfsiphash_init32(v, seed);
+   // body
+   while (count >= 4) {
+     // Avoid sign extension with 0x0ff
+@@ -168,17 +174,17 @@
+   halfsiphash_adddata(v, newdata, 2);
+ 
+   // finalization
+-  return halfsiphash_finish64(v, 4);
++  return halfsiphash_finish32(v, 4);
+ }
+ 
+-// HalfSipHash-2-4 (64-bit output) for Strings
+-uint64_t AltHashing::halfsiphash_64(uint64_t seed, const uint16_t* data, int len) {
++// HalfSipHash-2-4 (32-bit output) for Strings
++uint32_t AltHashing::halfsiphash_32(uint64_t seed, const uint16_t* data, int len) {
+   uint32_t v[4];
+   uint32_t newdata;
+   int off = 0;
+   int count = len;
+ 
+-  halfsiphash_init64(v, seed);
++  halfsiphash_init32(v, seed);
+ 
+   // body
+   while (count >= 2) {
+@@ -199,7 +205,7 @@
+   halfsiphash_adddata(v, newdata, 2);
+ 
+   // finalization
+-  return halfsiphash_finish64(v, 4);
++  return halfsiphash_finish32(v, 4);
+ }
+ 
+ // HalfSipHash-2-4 (64-bit output) for integers (used to create seed)
+@@ -229,44 +235,44 @@
+ }
+ 
+ #ifndef PRODUCT
+-  void AltHashing::testHalfsiphash_64_ByteArray() {
+-    // printf("testHalfsiphash_64_CharArray\n");
++  void AltHashing::testHalfsiphash_32_ByteArray() {
+     const int factor = 4;
+ 
+-    int8_t vector[256];
+-    int8_t hashes[factor * 256];
++    uint8_t vector[256];
++    uint8_t hashes[factor * 256];
+ 
+     for (int i = 0; i < 256; i++) {
+-      vector[i] = (int8_t) i;
++      vector[i] = (uint8_t) i;
+     }
+ 
+     // Hash subranges {}, {0}, {0,1}, {0,1,2}, ..., {0,...,255}
+     for (int i = 0; i < 256; i++) {
+-      uint64_t hash = AltHashing::halfsiphash_64(256 - i, vector, i);
+-      hashes[i * factor] = (int8_t) hash;
+-      hashes[i * factor + 1] = (int8_t)(hash >> 8);
+-      hashes[i * factor + 2] = (int8_t)(hash >> 16);
+-      hashes[i * factor + 3] = (int8_t)(hash >> 24);
++      uint32_t hash = AltHashing::halfsiphash_32(256 - i, vector, i);
++      hashes[i * factor] = (uint8_t) hash;
++      hashes[i * factor + 1] = (uint8_t)(hash >> 8);
++      hashes[i * factor + 2] = (uint8_t)(hash >> 16);
++      hashes[i * factor + 3] = (uint8_t)(hash >> 24);
+     }
+ 
+     // hash to get const result.
+-    uint64_t final_hash = AltHashing::halfsiphash_64(0, hashes, factor*256);
++    uint32_t final_hash = AltHashing::halfsiphash_32(0, hashes, factor*256);
+ 
+     // Value found using reference implementation for the hashes array.
+-    // halfsiphash((const uint8_t*)hashes, factor*256, (const uint8_t *)&k,
+-    //             (uint8_t*)&reference, 8);
+-
+-    static const uint64_t HALFSIPHASH_64_BYTE_CHECK_VALUE = 0x15a7911e30917ee8;
++    //uint64_t k = 0;  // seed
++    //uint32_t reference;
++    //halfsiphash((const uint8_t*)hashes, factor*256, (const uint8_t *)&k, (uint8_t*)&reference, 4);
++    //printf("0x%x", reference);
+ 
+-    assert (HALFSIPHASH_64_BYTE_CHECK_VALUE == final_hash,
++    static const uint32_t HALFSIPHASH_32_BYTE_CHECK_VALUE = 0xd2be7fd8;
++
++    assert (HALFSIPHASH_32_BYTE_CHECK_VALUE == final_hash,
+       err_msg(
+-          "Calculated hash result not as expected. Expected " UINT64_FORMAT " got " UINT64_FORMAT,
+-          HALFSIPHASH_64_BYTE_CHECK_VALUE,
++          "Calculated hash result not as expected. Expected " UINT32_FORMAT " got " UINT32_FORMAT,
++          HALFSIPHASH_32_BYTE_CHECK_VALUE,
+           final_hash));
+   }
+ 
+-  void AltHashing::testHalfsiphash_64_CharArray() {
+-    // printf("testHalfsiphash_64_CharArray\n");
++  void AltHashing::testHalfsiphash_32_CharArray() {
+     const int factor = 2;
+ 
+     uint16_t vector[256];
+@@ -278,30 +284,32 @@
+ 
+     // Hash subranges {}, {0}, {0,1}, {0,1,2}, ..., {0,...,255}
+     for (int i = 0; i < 256; i++) {
+-      uint64_t hash = AltHashing::halfsiphash_64(256 - i, vector, i);
++      uint32_t hash = AltHashing::halfsiphash_32(256 - i, vector, i);
+       hashes[i * factor] = (uint16_t) hash;
+       hashes[i * factor + 1] = (uint16_t)(hash >> 16);
+     }
+ 
+     // hash to get const result.
+-    uint64_t final_hash = AltHashing::halfsiphash_64(0, hashes, factor*256);
++    uint32_t final_hash = AltHashing::halfsiphash_32(0, hashes, factor*256);
+ 
+     // Value found using reference implementation for the hashes array.
+-    // halfsiphash((const uint8_t*)hashes, 2*factor*256, (const uint8_t *)&k,
+-    //             (uint8_t*)&reference, 8);
+-    static const uint64_t HALFSIPHASH_64_CHAR_CHECK_VALUE = 0xf392d8a6a9e24103;
++    //uint64_t k = 0;  // seed
++    //uint32_t reference;
++    //halfsiphash((const uint8_t*)hashes, 2*factor*256, (const uint8_t *)&k, (uint8_t*)&reference, 4);
++    //printf("0x%x", reference);
+ 
+-    assert(HALFSIPHASH_64_CHAR_CHECK_VALUE == final_hash,
++    static const uint32_t HALFSIPHASH_32_CHAR_CHECK_VALUE = 0x428bf8a5;
++
++    assert(HALFSIPHASH_32_CHAR_CHECK_VALUE == final_hash,
+       err_msg(
+-          "Calculated hash result not as expected. Expected " UINT64_FORMAT " got " UINT64_FORMAT,
+-          HALFSIPHASH_64_CHAR_CHECK_VALUE,
++          "Calculated hash result not as expected. Expected " UINT32_FORMAT " got " UINT32_FORMAT,
++          HALFSIPHASH_32_CHAR_CHECK_VALUE,
+           final_hash));
+   }
+ 
+   // Test against sample hashes published with the reference implementation:
+   // https://github.com/veorq/SipHash
+   void AltHashing::testHalfsiphash_64_FromReference() {
+-    // printf("testHalfsiphash_64_FromReference\n");
+ 
+     const uint64_t seed = 0x0706050403020100;
+     const uint64_t results[16] = {
+@@ -332,8 +340,8 @@
+   }
+ 
+ void AltHashing::test_alt_hash() {
+-  testHalfsiphash_64_ByteArray();
+-  testHalfsiphash_64_CharArray();
++  testHalfsiphash_32_ByteArray();
++  testHalfsiphash_32_CharArray();
+   testHalfsiphash_64_FromReference();
+ }
+ #endif // PRODUCT
+diff --git openjdk/hotspot/src/share/vm/classfile/altHashing.hpp openjdk/hotspot/src/share/vm/classfile/altHashing.hpp
+--- openjdk/hotspot/src/share/vm/classfile/altHashing.hpp
++++ openjdk/hotspot/src/share/vm/classfile/altHashing.hpp
+@@ -39,17 +39,17 @@
+   static uint64_t halfsiphash_64(uint64_t seed, const uint32_t* data, int len);
+  #ifndef PRODUCT
+    // Hashing functions used for internal testing
+-  static void testHalfsiphash_64_ByteArray();
+-  static void testHalfsiphash_64_CharArray();
++  static void testHalfsiphash_32_ByteArray();
++  static void testHalfsiphash_32_CharArray();
+   static void testHalfsiphash_64_FromReference();
+  #endif // PRODUCT
+  public:
+   static uint64_t compute_seed();
+ 
+   // For Symbols
+-  static uint64_t halfsiphash_64(uint64_t seed, const int8_t* data, int len);
++  static uint32_t halfsiphash_32(uint64_t seed, const uint8_t* data, int len);
+   // For Strings
+-  static uint64_t halfsiphash_64(uint64_t seed, const uint16_t* data, int len);
++  static uint32_t halfsiphash_32(uint64_t seed, const uint16_t* data, int len);
+   NOT_PRODUCT(static void test_alt_hash();)
+ };
+ #endif // SHARE_VM_CLASSFILE_ALTHASHING_HPP
+diff --git openjdk/hotspot/src/share/vm/classfile/symbolTable.cpp openjdk/hotspot/src/share/vm/classfile/symbolTable.cpp
+--- openjdk/hotspot/src/share/vm/classfile/symbolTable.cpp
++++ openjdk/hotspot/src/share/vm/classfile/symbolTable.cpp
+@@ -224,7 +224,7 @@
+ // Pick hashing algorithm.
+ unsigned int SymbolTable::hash_symbol(const char* s, int len) {
+   return use_alternate_hashcode() ?
+-           AltHashing::halfsiphash_64(seed(), (const int8_t*)s, len) :
++           AltHashing::halfsiphash_32(seed(), (const uint8_t*)s, len) :
+            java_lang_String::hash_code(s, len);
+ }
+ 
+@@ -650,7 +650,7 @@
+ 
+ // Pick hashing algorithm
+ unsigned int StringTable::hash_string(const jchar* s, int len) {
+-  return use_alternate_hashcode() ? AltHashing::halfsiphash_64(seed(), s, len) :
++  return use_alternate_hashcode() ? AltHashing::halfsiphash_32(seed(), s, len) :
+                                     java_lang_String::hash_code(s, len);
+ }
+ 
+diff --git openjdk/hotspot/src/share/vm/gc_implementation/g1/g1StringDedupTable.cpp openjdk/hotspot/src/share/vm/gc_implementation/g1/g1StringDedupTable.cpp
+--- openjdk/hotspot/src/share/vm/gc_implementation/g1/g1StringDedupTable.cpp
++++ openjdk/hotspot/src/share/vm/gc_implementation/g1/g1StringDedupTable.cpp
+@@ -150,7 +150,7 @@
+   assert(worker_id < _nlists, "Invalid worker id");
+ 
+   entry->set_obj(NULL);
+-  entry->set_java_hash(0);
++  entry->set_hash(0);
+ 
+   if (_cached[worker_id].length() < _max_list_length) {
+     // Cache is not full
+@@ -237,14 +237,10 @@
+   _table = new G1StringDedupTable(_min_size);
+ }
+ 
+-void G1StringDedupTable::add(typeArrayOop value, uint64_t hash, G1StringDedupEntry** list) {
++void G1StringDedupTable::add(typeArrayOop value, unsigned int hash, G1StringDedupEntry** list) {
+   G1StringDedupEntry* entry = _entry_cache->alloc();
+   entry->set_obj(value);
+-  if (use_java_hash()) {
+-    entry->set_java_hash((unsigned int)hash);
+-  } else {
+-    entry->set_alt_hash(hash);
+-  }
++  entry->set_hash(hash);
+   entry->set_next(*list);
+   *list = entry;
+   _entries++;
+@@ -259,7 +255,7 @@
+ void G1StringDedupTable::transfer(G1StringDedupEntry** pentry, G1StringDedupTable* dest) {
+   G1StringDedupEntry* entry = *pentry;
+   *pentry = entry->next();
+-  uint64_t hash = use_java_hash() ? entry->java_hash() : entry->alt_hash();
++  unsigned int hash = entry->hash();
+   size_t index = dest->hash_to_index(hash);
+   G1StringDedupEntry** list = dest->bucket(index);
+   entry->set_next(*list);
+@@ -274,10 +270,10 @@
+                     value1->length() * sizeof(jchar)))));
+ }
+ 
+-typeArrayOop G1StringDedupTable::lookup(typeArrayOop value, uint64_t hash,
++typeArrayOop G1StringDedupTable::lookup(typeArrayOop value, unsigned int hash,
+                                         G1StringDedupEntry** list, uintx &count) {
+   for (G1StringDedupEntry* entry = *list; entry != NULL; entry = entry->next()) {
+-    if ((use_java_hash() ? entry->java_hash() : entry->alt_hash()) == hash) {
++    if (entry->hash() == hash) {
+       typeArrayOop existing_value = entry->obj();
+       if (equals(value, existing_value)) {
+         // Match found
+@@ -291,7 +287,7 @@
+   return NULL;
+ }
+ 
+-typeArrayOop G1StringDedupTable::lookup_or_add_inner(typeArrayOop value, uint64_t hash) {
++typeArrayOop G1StringDedupTable::lookup_or_add_inner(typeArrayOop value, unsigned int hash) {
+   size_t index = hash_to_index(hash);
+   G1StringDedupEntry** list = bucket(index);
+   uintx count = 0;
+@@ -315,25 +311,19 @@
+   return existing_value;
+ }
+ 
+-unsigned int G1StringDedupTable::java_hash_code(typeArrayOop value) {
+-  assert(use_java_hash(), "Should not use java hash code");
++unsigned int G1StringDedupTable::hash_code(typeArrayOop value) {
+   unsigned int hash;
+   int length = value->length();
+   const jchar* data = (jchar*)value->base(T_CHAR);
+ 
+-  hash = java_lang_String::hash_code(data, length);
+-
++  if (use_java_hash()) {
++    hash = java_lang_String::hash_code(data, length);
++  } else {
++    hash = AltHashing::halfsiphash_32(_table->_hash_seed, (const uint16_t*)data, length);
++  }
+   return hash;
+ }
+ 
+-uint64_t G1StringDedupTable::alt_hash_code(typeArrayOop value) {
+-  assert(!use_java_hash(), "Should not use alt hash code");
+-
+-  int length = value->length();
+-  const jbyte* data = (jbyte*)value->base(T_BYTE);
+-  return AltHashing::halfsiphash_64(_table->_hash_seed, (const int8_t*)data, length);
+-}
+-
+ void G1StringDedupTable::deduplicate(oop java_string, G1StringDedupStat& stat) {
+   assert(java_lang_String::is_instance(java_string), "Must be a string");
+   No_Safepoint_Verifier nsv;
+@@ -347,7 +337,7 @@
+     return;
+   }
+ 
+-  uint64_t hash = 0;
++  unsigned int hash = 0;
+ 
+   if (use_java_hash()) {
+     // Get hash code from cache
+@@ -356,7 +346,7 @@
+ 
+   if (hash == 0) {
+     // Compute hash
+-    hash = alt_hash_code(value);
++    hash = hash_code(value);
+     stat.inc_hashed();
+   }
+ 
+@@ -510,9 +500,8 @@
+             // destination partitions. finish_rehash() will do a single
+             // threaded transfer of all entries.
+             typeArrayOop value = (typeArrayOop)*p;
+-            assert(!use_java_hash(), "Should not be using Java hash");
+-            uint64_t hash = alt_hash_code(value);
+-            (*entry)->set_alt_hash(hash);
++            unsigned int hash = hash_code(value);
++            (*entry)->set_hash(hash);
+           }
+ 
+           // Move to next entry
+@@ -575,14 +564,8 @@
+       guarantee(Universe::heap()->is_in_reserved(value), "Object must be on the heap");
+       guarantee(!value->is_forwarded(), "Object must not be forwarded");
+       guarantee(value->is_typeArray(), "Object must be a typeArrayOop");
+-      uint64_t hash;
+-      if (use_java_hash()) {
+-        hash = (*entry)->java_hash();
+-        guarantee(java_hash_code(value) == hash, "Table entry has incorrect hash");
+-      } else {
+-        hash = (*entry)->alt_hash();
+-        guarantee(alt_hash_code(value) == hash, "Table entry has incorrect hash");
+-      }
++      unsigned int hash = hash_code(value);
++      guarantee((*entry)->hash() == hash, "Table entry has inorrect hash");
+       guarantee(_table->hash_to_index(hash) == bucket, "Table entry has incorrect index");
+       entry = (*entry)->next_addr();
+     }
+@@ -597,10 +580,7 @@
+       G1StringDedupEntry** entry2 = (*entry1)->next_addr();
+       while (*entry2 != NULL) {
+         typeArrayOop value2 = (*entry2)->obj();
+-        guarantee(value1 != value2, "Table entries must not have the same array");
+-        if (use_java_hash()) {
+-          guarantee(!equals(value1, value2), "Table entries must not have identical arrays");
+-        }
++        guarantee(!equals(value1, value2), "Table entries must not have identical arrays");
+         entry2 = (*entry2)->next_addr();
+       }
+       entry1 = (*entry1)->next_addr();
+@@ -619,7 +599,7 @@
+     "      [Size: " SIZE_FORMAT ", Min: " SIZE_FORMAT ", Max: " SIZE_FORMAT "]\n"
+     "      [Entries: " UINTX_FORMAT ", Load: " G1_STRDEDUP_PERCENT_FORMAT_NS ", Cached: " UINTX_FORMAT ", Added: " UINTX_FORMAT ", Removed: " UINTX_FORMAT "]\n"
+     "      [Resize Count: " UINTX_FORMAT ", Shrink Threshold: " UINTX_FORMAT "(" G1_STRDEDUP_PERCENT_FORMAT_NS "), Grow Threshold: " UINTX_FORMAT "(" G1_STRDEDUP_PERCENT_FORMAT_NS ")]\n"
+-    "      [Rehash Count: " UINTX_FORMAT ", Rehash Threshold: " UINTX_FORMAT ", Hash Seed: " UINT64_FORMAT_X "]\n"
++    "      [Rehash Count: " UINTX_FORMAT ", Rehash Threshold: " UINTX_FORMAT ", Hash Seed: " UINT64_FORMAT "]\n"
+     "      [Age Threshold: " UINTX_FORMAT "]",
+     G1_STRDEDUP_BYTES_PARAM(_table->_size * sizeof(G1StringDedupEntry*) + (_table->_entries + _entry_cache->size()) * sizeof(G1StringDedupEntry)),
+     _table->_size, _min_size, _max_size,
+diff --git openjdk/hotspot/src/share/vm/gc_implementation/g1/g1StringDedupTable.hpp openjdk/hotspot/src/share/vm/gc_implementation/g1/g1StringDedupTable.hpp
+--- openjdk/hotspot/src/share/vm/gc_implementation/g1/g1StringDedupTable.hpp
++++ openjdk/hotspot/src/share/vm/gc_implementation/g1/g1StringDedupTable.hpp
+@@ -38,11 +38,9 @@
+ class G1StringDedupEntry : public CHeapObj<mtGC> {
+ private:
+   G1StringDedupEntry* _next;
+-  uint64_t            _hash;
++  unsigned int        _hash;
+   typeArrayOop        _obj;
+ 
+-  static const uint64_t java_hash_mask = ((uint64_t)1 << 32) - 1;
+-
+ public:
+   G1StringDedupEntry() :
+     _next(NULL),
+@@ -62,19 +60,11 @@
+     _next = next;
+   }
+ 
+-  unsigned int java_hash() {
+-    return (unsigned int)(_hash & java_hash_mask);
+-  }
+-
+-  void set_java_hash(unsigned int hash) {
+-    _hash = hash;
+-  }
+-
+-  uint64_t alt_hash() {
++  unsigned int hash() {
+     return _hash;
+   }
+ 
+-  void set_alt_hash(uint64_t hash) {
++  void set_hash(unsigned int hash) {
+     _hash = hash;
+   }
+ 
+@@ -129,7 +119,7 @@
+   // The hash seed also dictates which hash function to use. A
+   // zero hash seed means we will use the Java compatible hash
+   // function (which doesn't use a seed), and a non-zero hash
+-  // seed means we use the alternate and better hash function.
++  // seed means we use the murmur3 and better hash function.
+   uint64_t                        _hash_seed;
+ 
+   // Constants governing table resize/rehash/cache.
+@@ -156,12 +146,12 @@
+   }
+ 
+   // Returns the hash bucket index for the given hash code.
+-  size_t hash_to_index(uint64_t hash) {
++  size_t hash_to_index(unsigned int hash) {
+     return (size_t)hash & (_size - 1);
+   }
+ 
+   // Adds a new table entry to the given hash bucket.
+-  void add(typeArrayOop value, uint64_t hash, G1StringDedupEntry** list);
++  void add(typeArrayOop value, unsigned int hash, G1StringDedupEntry** list);
+ 
+   // Removes the given table entry from the table.
+   void remove(G1StringDedupEntry** pentry, uint worker_id);
+@@ -171,15 +161,15 @@
+ 
+   // Returns an existing character array in the given hash bucket, or NULL
+   // if no matching character array exists.
+-  typeArrayOop lookup(typeArrayOop value, uint64_t hash,
++  typeArrayOop lookup(typeArrayOop value, unsigned int hash,
+                       G1StringDedupEntry** list, uintx &count);
+ 
+   // Returns an existing character array in the table, or inserts a new
+   // table entry if no matching character array exists.
+-  typeArrayOop lookup_or_add_inner(typeArrayOop value, uint64_t hash);
++  typeArrayOop lookup_or_add_inner(typeArrayOop value, unsigned int hash);
+ 
+   // Thread safe lookup or add of table entry
+-  static typeArrayOop lookup_or_add(typeArrayOop value, uint64_t hash) {
++  static typeArrayOop lookup_or_add(typeArrayOop value, unsigned int hash) {
+     // Protect the table from concurrent access. Also note that this lock
+     // acts as a fence for _table, which could have been replaced by a new
+     // instance if the table was resized or rehashed.
+@@ -197,8 +187,7 @@
+ 
+   // Computes the hash code for the given character array, using the
+   // currently active hash function and hash seed.
+-  static unsigned int java_hash_code(typeArrayOop value);
+-  static uint64_t alt_hash_code(typeArrayOop value);
++  static unsigned int hash_code(typeArrayOop value);
+ 
+   static uintx unlink_or_oops_do(G1StringDedupUnlinkOrOopsDoClosure* cl,
+                                  size_t partition_begin,
+diff --git openjdk/hotspot/src/share/vm/memory/filemap.cpp openjdk/hotspot/src/share/vm/memory/filemap.cpp
+--- openjdk/hotspot/src/share/vm/memory/filemap.cpp
++++ openjdk/hotspot/src/share/vm/memory/filemap.cpp
+@@ -125,13 +125,13 @@
+   } else {
+     // Get the hash value.  Use a static seed because the hash needs to return the same
+     // value over multiple jvm invocations.
+-    uint64_t hash = AltHashing::halfsiphash_64(8191, (const int8_t*)vm_version, version_len);
++    uint32_t hash = AltHashing::halfsiphash_32(8191, (const uint8_t*)vm_version, version_len);
+ 
+-    // Truncate the ident, saving room for the 16 hex character hash value.
+-    strncpy(header_version, vm_version, JVM_IDENT_MAX-17);
++    // Truncate the ident, saving room for the 8 hex character hash value.
++    strncpy(header_version, vm_version, JVM_IDENT_MAX-9);
+ 
+-    // Append the hash code as 16 hex digits.
+-    sprintf(&header_version[JVM_IDENT_MAX-17], "%016" PRIx64, hash);
++    // Append the hash code as eight hex digits.
++    sprintf(&header_version[JVM_IDENT_MAX-9], "%08x", hash);
+     header_version[JVM_IDENT_MAX-1] = 0;  // Null terminate.
+   }
+ }
+diff --git openjdk/hotspot/src/share/vm/oops/oop.cpp openjdk/hotspot/src/share/vm/oops/oop.cpp
+--- openjdk/hotspot/src/share/vm/oops/oop.cpp
++++ openjdk/hotspot/src/share/vm/oops/oop.cpp
+@@ -111,7 +111,7 @@
+   jchar* chars = java_lang_String::as_unicode_string(this, length, THREAD);
+   if (chars != NULL) {
+     // Use alternate hashing algorithm on the string
+-    return AltHashing::halfsiphash_64(seed, chars, length);
++    return AltHashing::halfsiphash_32(seed, chars, length);
+   } else {
+     vm_exit_out_of_memory(length, OOM_MALLOC_ERROR, "unable to create Unicode strings for String table rehash");
+     return 0;
+diff --git openjdk/hotspot/src/share/vm/oops/symbol.cpp openjdk/hotspot/src/share/vm/oops/symbol.cpp
+--- openjdk/hotspot/src/share/vm/oops/symbol.cpp
++++ openjdk/hotspot/src/share/vm/oops/symbol.cpp
+@@ -210,7 +210,7 @@
+ unsigned int Symbol::new_hash(juint seed) {
+   ResourceMark rm;
+   // Use alternate hashing algorithm on this symbol.
+-  return AltHashing::halfsiphash_64(seed, (const int8_t*)as_C_string(), utf8_length());
++  return AltHashing::halfsiphash_32(seed, (const uint8_t*)as_C_string(), utf8_length());
+ }
+ 
+ void Symbol::increment_refcount() {
+# HG changeset patch
+# User dcherepanov
+# Date 1589378357 -7200
+#      Wed May 13 15:59:17 2020 +0200
+# Node ID 824065fb8b1863025279a5d2a32ec27b4428d1b4
+# Parent  8adf45218addf325d7947dcd01a2a3d16711765a
+8241114: Better range handling
+Reviewed-by: kvn, vlivanov, rhalade, ahgross, mbalao, andrew
+
+diff --git openjdk/hotspot/src/share/vm/opto/addnode.cpp openjdk/hotspot/src/share/vm/opto/addnode.cpp
+--- openjdk/hotspot/src/share/vm/opto/addnode.cpp
++++ openjdk/hotspot/src/share/vm/opto/addnode.cpp
+@@ -844,6 +844,14 @@
+   return TypeInt::make( MAX2(r0->_lo,r1->_lo), MAX2(r0->_hi,r1->_hi), MAX2(r0->_widen,r1->_widen) );
+ }
+ 
++// Check if addition of an integer with type 't' and a constant 'c' can overflow
++static bool can_overflow(const TypeInt* t, jint c) {
++  jint t_lo = t->_lo;
++  jint t_hi = t->_hi;
++  return ((c < 0 && (java_add(t_lo, c) > t_lo)) ||
++          (c > 0 && (java_add(t_hi, c) < t_hi)));
++}
++
+ //=============================================================================
+ //------------------------------Idealize---------------------------------------
+ // MINs show up in range-check loop limit calculations.  Look for
+@@ -866,7 +874,7 @@
+ 
+   // Get left input & constant
+   Node *x = l;
+-  int x_off = 0;
++  jint x_off = 0;
+   if( x->Opcode() == Op_AddI && // Check for "x+c0" and collect constant
+       x->in(2)->is_Con() ) {
+     const Type *t = x->in(2)->bottom_type();
+@@ -877,7 +885,7 @@
+ 
+   // Scan a right-spline-tree for MINs
+   Node *y = r;
+-  int y_off = 0;
++  jint y_off = 0;
+   // Check final part of MIN tree
+   if( y->Opcode() == Op_AddI && // Check for "y+c1" and collect constant
+       y->in(2)->is_Con() ) {
+@@ -891,6 +899,7 @@
+     return this;
+   }
+ 
++  const TypeInt* tx = phase->type(x)->isa_int();
+ 
+   if( r->Opcode() == Op_MinI ) {
+     assert( r != r->in(2), "dead loop in MinINode::Ideal" );
+@@ -907,18 +916,23 @@
+     if( x->_idx > y->_idx )
+       return new (phase->C) MinINode(r->in(1),phase->transform(new (phase->C) MinINode(l,r->in(2))));
+ 
+-    // See if covers: MIN2(x+c0,MIN2(y+c1,z))
+-    if( !phase->eqv(x,y) ) return NULL;
+-    // If (y == x) transform MIN2(x+c0, MIN2(x+c1,z)) into
+-    // MIN2(x+c0 or x+c1 which less, z).
+-    return new (phase->C) MinINode(phase->transform(new (phase->C) AddINode(x,phase->intcon(MIN2(x_off,y_off)))),r->in(2));
++    // Transform MIN2(x + c0, MIN2(x + c1, z)) into MIN2(x + MIN2(c0, c1), z)
++    // if x == y and the additions can't overflow.
++    if (phase->eqv(x,y) &&
++        !can_overflow(tx, x_off) &&
++        !can_overflow(tx, y_off)) {
++      return new (phase->C) MinINode(phase->transform(new (phase->C) AddINode(x, phase->intcon(MIN2(x_off, y_off)))), r->in(2));
++    }
+   } else {
+-    // See if covers: MIN2(x+c0,y+c1)
+-    if( !phase->eqv(x,y) ) return NULL;
+-    // If (y == x) transform MIN2(x+c0,x+c1) into x+c0 or x+c1 which less.
+-    return new (phase->C) AddINode(x,phase->intcon(MIN2(x_off,y_off)));
++    // Transform MIN2(x + c0, y + c1) into x + MIN2(c0, c1)
++    // if x == y and the additions can't overflow.
++    if (phase->eqv(x,y) &&
++        !can_overflow(tx, x_off) &&
++        !can_overflow(tx, y_off)) {
++      return new (phase->C) AddINode(x,phase->intcon(MIN2(x_off,y_off)));
++    }
+   }
+-
++  return NULL;
+ }
+ 
+ //------------------------------add_ring---------------------------------------
+diff --git openjdk/hotspot/src/share/vm/opto/loopTransform.cpp openjdk/hotspot/src/share/vm/opto/loopTransform.cpp
+--- openjdk/hotspot/src/share/vm/opto/loopTransform.cpp
++++ openjdk/hotspot/src/share/vm/opto/loopTransform.cpp
+@@ -1530,65 +1530,78 @@
+ }
+ 
+ //------------------------------adjust_limit-----------------------------------
+-// Helper function for add_constraint().
+-Node* PhaseIdealLoop::adjust_limit(int stride_con, Node * scale, Node *offset, Node *rc_limit, Node *loop_limit, Node *pre_ctrl, bool round_up) {
+-  // Compute "I :: (limit-offset)/scale"
+-  Node *con = new (C) SubINode(rc_limit, offset);
+-  register_new_node(con, pre_ctrl);
+-  Node *X = new (C) DivINode(0, con, scale);
+-  register_new_node(X, pre_ctrl);
++// Helper function that computes new loop limit as (rc_limit-offset)/scale
++Node* PhaseIdealLoop::adjust_limit(bool is_positive_stride, Node* scale, Node* offset, Node* rc_limit, Node* old_limit, Node* pre_ctrl, bool round) {
++  Node* sub = new (C) SubLNode(rc_limit, offset);
++  register_new_node(sub, pre_ctrl);
++  Node* limit = new (C) DivLNode(NULL, sub, scale);
++  register_new_node(limit, pre_ctrl);
+ 
+-  // When the absolute value of scale is greater than one, the integer
+-  // division may round limit down so add one to the limit.
+-  if (round_up) {
+-    X = new (C) AddINode(X, _igvn.intcon(1));
+-    register_new_node(X, pre_ctrl);
++  // When the absolute value of scale is greater than one, the division
++  // may round limit down/up, so add/sub one to/from the limit.
++  if (round) {
++    limit = new (C) AddLNode(limit, _igvn.longcon(is_positive_stride ? -1 : 1));
++    register_new_node(limit, pre_ctrl);
+   }
+ 
+-  // Adjust loop limit
+-  loop_limit = (stride_con > 0)
+-               ? (Node*)(new (C) MinINode(loop_limit, X))
+-               : (Node*)(new (C) MaxINode(loop_limit, X));
+-  register_new_node(loop_limit, pre_ctrl);
+-  return loop_limit;
++  // Clamp the limit to handle integer under-/overflows.
++  // When reducing the limit, clamp to [min_jint, old_limit]:
++  //   MIN(old_limit, MAX(limit, min_jint))
++  // When increasing the limit, clamp to [old_limit, max_jint]:
++  //   MAX(old_limit, MIN(limit, max_jint))
++  Node* cmp = new (C) CmpLNode(limit, _igvn.longcon(is_positive_stride ? min_jint : max_jint));
++  register_new_node(cmp, pre_ctrl);
++  Node* bol = new (C) BoolNode(cmp, is_positive_stride ? BoolTest::lt : BoolTest::gt);
++  register_new_node(bol, pre_ctrl);
++  limit = new (C) ConvL2INode(limit);
++  register_new_node(limit, pre_ctrl);
++  limit = new (C) CMoveINode(bol, limit, _igvn.intcon(is_positive_stride ? min_jint : max_jint), TypeInt::INT);
++  register_new_node(limit, pre_ctrl);
++
++  limit = is_positive_stride ? (Node*)(new (C) MinINode(old_limit, limit))
++                             : (Node*)(new (C) MaxINode(old_limit, limit));
++  register_new_node(limit, pre_ctrl);
++  return limit;
+ }
+ 
+ //------------------------------add_constraint---------------------------------
+ // Constrain the main loop iterations so the conditions:
+-//    low_limit <= scale_con * I + offset  <  upper_limit
+-// always holds true.  That is, either increase the number of iterations in
+-// the pre-loop or the post-loop until the condition holds true in the main
+-// loop.  Stride, scale, offset and limit are all loop invariant.  Further,
+-// stride and scale are constants (offset and limit often are).
+-void PhaseIdealLoop::add_constraint( int stride_con, int scale_con, Node *offset, Node *low_limit, Node *upper_limit, Node *pre_ctrl, Node **pre_limit, Node **main_limit ) {
+-  // For positive stride, the pre-loop limit always uses a MAX function
+-  // and the main loop a MIN function.  For negative stride these are
+-  // reversed.
++//    low_limit <= scale_con*I + offset < upper_limit
++// always hold true. That is, either increase the number of iterations in the
++// pre-loop or reduce the number of iterations in the main-loop until the condition
++// holds true in the main-loop. Stride, scale, offset and limit are all loop
++// invariant. Further, stride and scale are constants (offset and limit often are).
++void PhaseIdealLoop::add_constraint(jlong stride_con, jlong scale_con, Node* offset, Node* low_limit, Node* upper_limit, Node* pre_ctrl, Node** pre_limit, Node** main_limit) {
++  assert(_igvn.type(offset)->isa_long() != NULL && _igvn.type(low_limit)->isa_long() != NULL &&
++         _igvn.type(upper_limit)->isa_long() != NULL, "arguments should be long values");
+ 
+-  // Also for positive stride*scale the affine function is increasing, so the
+-  // pre-loop must check for underflow and the post-loop for overflow.
+-  // Negative stride*scale reverses this; pre-loop checks for overflow and
+-  // post-loop for underflow.
++  // For a positive stride, we need to reduce the main-loop limit and
++  // increase the pre-loop limit. This is reversed for a negative stride.
++  bool is_positive_stride = (stride_con > 0);
+ 
+-  Node *scale = _igvn.intcon(scale_con);
++  // If the absolute scale value is greater one, division in 'adjust_limit' may require
++  // rounding. Make sure the ABS method correctly handles min_jint.
++  // Only do this for the pre-loop, one less iteration of the main loop doesn't hurt.
++  bool round = ABS(scale_con) > 1;
++
++  Node* scale = _igvn.longcon(scale_con);
+   set_ctrl(scale, C->root());
+ 
+   if ((stride_con^scale_con) >= 0) { // Use XOR to avoid overflow
++    // Positive stride*scale: the affine function is increasing,
++    // the pre-loop checks for underflow and the post-loop for overflow.
++
+     // The overflow limit: scale*I+offset < upper_limit
+-    // For main-loop compute
++    // For the main-loop limit compute:
+     //   ( if (scale > 0) /* and stride > 0 */
+     //       I < (upper_limit-offset)/scale
+     //     else /* scale < 0 and stride < 0 */
+     //       I > (upper_limit-offset)/scale
+     //   )
+-    //
+-    // (upper_limit-offset) may overflow or underflow.
+-    // But it is fine since main loop will either have
+-    // less iterations or will be skipped in such case.
+-    *main_limit = adjust_limit(stride_con, scale, offset, upper_limit, *main_limit, pre_ctrl, false);
++    *main_limit = adjust_limit(is_positive_stride, scale, offset, upper_limit, *main_limit, pre_ctrl, false);
+ 
+-    // The underflow limit: low_limit <= scale*I+offset.
+-    // For pre-loop compute
++    // The underflow limit: low_limit <= scale*I+offset
++    // For the pre-loop limit compute:
+     //   NOT(scale*I+offset >= low_limit)
+     //   scale*I+offset < low_limit
+     //   ( if (scale > 0) /* and stride > 0 */
+@@ -1596,40 +1609,13 @@
+     //     else /* scale < 0 and stride < 0 */
+     //       I > (low_limit-offset)/scale
+     //   )
++    *pre_limit = adjust_limit(!is_positive_stride, scale, offset, low_limit, *pre_limit, pre_ctrl, round);
++  } else {
++    // Negative stride*scale: the affine function is decreasing,
++    // the pre-loop checks for overflow and the post-loop for underflow.
+ 
+-    if (low_limit->get_int() == -max_jint) {
+-      if (!RangeLimitCheck) return;
+-      // We need this guard when scale*pre_limit+offset >= limit
+-      // due to underflow. So we need execute pre-loop until
+-      // scale*I+offset >= min_int. But (min_int-offset) will
+-      // underflow when offset > 0 and X will be > original_limit
+-      // when stride > 0. To avoid it we replace positive offset with 0.
+-      //
+-      // Also (min_int+1 == -max_int) is used instead of min_int here
+-      // to avoid problem with scale == -1 (min_int/(-1) == min_int).
+-      Node* shift = _igvn.intcon(31);
+-      set_ctrl(shift, C->root());
+-      Node* sign = new (C) RShiftINode(offset, shift);
+-      register_new_node(sign, pre_ctrl);
+-      offset = new (C) AndINode(offset, sign);
+-      register_new_node(offset, pre_ctrl);
+-    } else {
+-      assert(low_limit->get_int() == 0, "wrong low limit for range check");
+-      // The only problem we have here when offset == min_int
+-      // since (0-min_int) == min_int. It may be fine for stride > 0
+-      // but for stride < 0 X will be < original_limit. To avoid it
+-      // max(pre_limit, original_limit) is used in do_range_check().
+-    }
+-    // Pass (-stride) to indicate pre_loop_cond = NOT(main_loop_cond);
+-    *pre_limit = adjust_limit((-stride_con), scale, offset, low_limit, *pre_limit, pre_ctrl,
+-                              scale_con > 1 && stride_con > 0);
+-
+-  } else { // stride_con*scale_con < 0
+-    // For negative stride*scale pre-loop checks for overflow and
+-    // post-loop for underflow.
+-    //
+     // The overflow limit: scale*I+offset < upper_limit
+-    // For pre-loop compute
++    // For the pre-loop limit compute:
+     //   NOT(scale*I+offset < upper_limit)
+     //   scale*I+offset >= upper_limit
+     //   scale*I+offset+1 > upper_limit
+@@ -1638,58 +1624,24 @@
+     //     else /* scale > 0 and stride < 0 */
+     //       I > (upper_limit-(offset+1))/scale
+     //   )
+-    //
+-    // (upper_limit-offset-1) may underflow or overflow.
+-    // To avoid it min(pre_limit, original_limit) is used
+-    // in do_range_check() for stride > 0 and max() for < 0.
+-    Node *one  = _igvn.intcon(1);
++    Node* one = _igvn.longcon(1);
+     set_ctrl(one, C->root());
+-
+-    Node *plus_one = new (C) AddINode(offset, one);
++    Node* plus_one = new (C) AddLNode(offset, one);
+     register_new_node( plus_one, pre_ctrl );
+-    // Pass (-stride) to indicate pre_loop_cond = NOT(main_loop_cond);
+-    *pre_limit = adjust_limit((-stride_con), scale, plus_one, upper_limit, *pre_limit, pre_ctrl,
+-                              scale_con < -1 && stride_con > 0);
++    *pre_limit = adjust_limit(!is_positive_stride, scale, plus_one, upper_limit, *pre_limit, pre_ctrl, round);
+ 
+-    if (low_limit->get_int() == -max_jint) {
+-      if (!RangeLimitCheck) return;
+-      // We need this guard when scale*main_limit+offset >= limit
+-      // due to underflow. So we need execute main-loop while
+-      // scale*I+offset+1 > min_int. But (min_int-offset-1) will
+-      // underflow when (offset+1) > 0 and X will be < main_limit
+-      // when scale < 0 (and stride > 0). To avoid it we replace
+-      // positive (offset+1) with 0.
+-      //
+-      // Also (min_int+1 == -max_int) is used instead of min_int here
+-      // to avoid problem with scale == -1 (min_int/(-1) == min_int).
+-      Node* shift = _igvn.intcon(31);
+-      set_ctrl(shift, C->root());
+-      Node* sign = new (C) RShiftINode(plus_one, shift);
+-      register_new_node(sign, pre_ctrl);
+-      plus_one = new (C) AndINode(plus_one, sign);
+-      register_new_node(plus_one, pre_ctrl);
+-    } else {
+-      assert(low_limit->get_int() == 0, "wrong low limit for range check");
+-      // The only problem we have here when offset == max_int
+-      // since (max_int+1) == min_int and (0-min_int) == min_int.
+-      // But it is fine since main loop will either have
+-      // less iterations or will be skipped in such case.
+-    }
+-    // The underflow limit: low_limit <= scale*I+offset.
+-    // For main-loop compute
++    // The underflow limit: low_limit <= scale*I+offset
++    // For the main-loop limit compute:
+     //   scale*I+offset+1 > low_limit
+     //   ( if (scale < 0) /* and stride > 0 */
+     //       I < (low_limit-(offset+1))/scale
+     //     else /* scale > 0 and stride < 0 */
+     //       I > (low_limit-(offset+1))/scale
+     //   )
+-
+-    *main_limit = adjust_limit(stride_con, scale, plus_one, low_limit, *main_limit, pre_ctrl,
+-                               false);
++    *main_limit = adjust_limit(is_positive_stride, scale, plus_one, low_limit, *main_limit, pre_ctrl, false);
+   }
+ }
+ 
+-
+ //------------------------------is_scaled_iv---------------------------------
+ // Return true if exp is a constant times an induction var
+ bool PhaseIdealLoop::is_scaled_iv(Node* exp, Node* iv, int* p_scale) {
+@@ -1854,22 +1806,14 @@
+   // Must know if its a count-up or count-down loop
+ 
+   int stride_con = cl->stride_con();
+-  Node *zero = _igvn.intcon(0);
+-  Node *one  = _igvn.intcon(1);
++  Node* zero = _igvn.longcon(0);
++  Node* one  = _igvn.longcon(1);
+   // Use symmetrical int range [-max_jint,max_jint]
+-  Node *mini = _igvn.intcon(-max_jint);
++  Node* mini = _igvn.longcon(-max_jint);
+   set_ctrl(zero, C->root());
+   set_ctrl(one,  C->root());
+   set_ctrl(mini, C->root());
+ 
+-  // Range checks that do not dominate the loop backedge (ie.
+-  // conditionally executed) can lengthen the pre loop limit beyond
+-  // the original loop limit. To prevent this, the pre limit is
+-  // (for stride > 0) MINed with the original loop limit (MAXed
+-  // stride < 0) when some range_check (rc) is conditionally
+-  // executed.
+-  bool conditional_rc = false;
+-
+   // Check loop body for tests of trip-counter plus loop-invariant vs
+   // loop-invariant.
+   for( uint i = 0; i < loop->_body.size(); i++ ) {
+@@ -1948,15 +1892,20 @@
+       // stride_con and scale_con can be negative which will flip about the
+       // sense of the test.
+ 
++      // Perform the limit computations in jlong to avoid overflow
++      jlong lscale_con = scale_con;
++      Node* int_offset = offset;
++      offset = new (C) ConvI2LNode(offset);
++      register_new_node(offset, pre_ctrl);
++      Node* int_limit = limit;
++      limit = new (C) ConvI2LNode(limit);
++      register_new_node(limit, pre_ctrl);
++
+       // Adjust pre and main loop limits to guard the correct iteration set
+       if( cmp->Opcode() == Op_CmpU ) {// Unsigned compare is really 2 tests
+         if( b_test._test == BoolTest::lt ) { // Range checks always use lt
+           // The underflow and overflow limits: 0 <= scale*I+offset < limit
+-          add_constraint( stride_con, scale_con, offset, zero, limit, pre_ctrl, &pre_limit, &main_limit );
+-          if (!conditional_rc) {
+-            // (0-offset)/scale could be outside of loop iterations range.
+-            conditional_rc = !loop->dominates_backedge(iff) || RangeLimitCheck;
+-          }
++          add_constraint(stride_con, lscale_con, offset, zero, limit, pre_ctrl, &pre_limit, &main_limit);
+         } else {
+ #ifndef PRODUCT
+           if( PrintOpto )
+@@ -1970,16 +1919,16 @@
+           // Fall into GE case
+         case BoolTest::ge:
+           // Convert (I*scale+offset) >= Limit to (I*(-scale)+(-offset)) <= -Limit
+-          scale_con = -scale_con;
+-          offset = new (C) SubINode( zero, offset );
++          lscale_con = -lscale_con;
++          offset = new (C) SubLNode(zero, offset);
+           register_new_node( offset, pre_ctrl );
+-          limit  = new (C) SubINode( zero, limit  );
++          limit  = new (C) SubLNode(zero, limit);
+           register_new_node( limit, pre_ctrl );
+           // Fall into LE case
+         case BoolTest::le:
+           if (b_test._test != BoolTest::gt) {
+             // Convert X <= Y to X < Y+1
+-            limit = new (C) AddINode( limit, one );
++            limit = new (C) AddLNode(limit, one);
+             register_new_node( limit, pre_ctrl );
+           }
+           // Fall into LT case
+@@ -1987,13 +1936,7 @@
+           // The underflow and overflow limits: MIN_INT <= scale*I+offset < limit
+           // Note: (MIN_INT+1 == -MAX_INT) is used instead of MIN_INT here
+           // to avoid problem with scale == -1: MIN_INT/(-1) == MIN_INT.
+-          add_constraint( stride_con, scale_con, offset, mini, limit, pre_ctrl, &pre_limit, &main_limit );
+-          if (!conditional_rc) {
+-            // ((MIN_INT+1)-offset)/scale could be outside of loop iterations range.
+-            // Note: negative offset is replaced with 0 but (MIN_INT+1)/scale could
+-            // still be outside of loop range.
+-            conditional_rc = !loop->dominates_backedge(iff) || RangeLimitCheck;
+-          }
++          add_constraint(stride_con, lscale_con, offset, mini, limit, pre_ctrl, &pre_limit, &main_limit);
+           break;
+         default:
+ #ifndef PRODUCT
+@@ -2029,7 +1972,8 @@
+   }
+ 
+   // Update loop limits
+-  if (conditional_rc) {
++  if (pre_limit != orig_limit) {
++    // Computed pre-loop limit can be outside of loop iterations range.
+     pre_limit = (stride_con > 0) ? (Node*)new (C) MinINode(pre_limit, orig_limit)
+                                  : (Node*)new (C) MaxINode(pre_limit, orig_limit);
+     register_new_node(pre_limit, pre_ctrl);
+diff --git openjdk/hotspot/src/share/vm/opto/loopnode.hpp openjdk/hotspot/src/share/vm/opto/loopnode.hpp
+--- openjdk/hotspot/src/share/vm/opto/loopnode.hpp
++++ openjdk/hotspot/src/share/vm/opto/loopnode.hpp
+@@ -961,9 +961,9 @@
+   // always holds true.  That is, either increase the number of iterations in
+   // the pre-loop or the post-loop until the condition holds true in the main
+   // loop.  Scale_con, offset and limit are all loop invariant.
+-  void add_constraint( int stride_con, int scale_con, Node *offset, Node *low_limit, Node *upper_limit, Node *pre_ctrl, Node **pre_limit, Node **main_limit );
++  void add_constraint(jlong stride_con, jlong scale_con, Node* offset, Node* low_limit, Node* upper_limit, Node* pre_ctrl, Node** pre_limit, Node** main_limit);
+   // Helper function for add_constraint().
+-  Node* adjust_limit(int stride_con, Node * scale, Node *offset, Node *rc_limit, Node *loop_limit, Node *pre_ctrl, bool round_up);
++  Node* adjust_limit(bool reduce, Node* scale, Node* offset, Node* rc_limit, Node* old_limit, Node* pre_ctrl, bool round);
+ 
+   // Partially peel loop up through last_peel node.
+   bool partial_peel( IdealLoopTree *loop, Node_List &old_new );
+# HG changeset patch
+# User bae
+# Date 1602871976 -3600
+#      Fri Oct 16 19:12:56 2020 +0100
+# Node ID c49a13526ba9db3d8d2fc4669031ba5bd0f3ee05
+# Parent  824065fb8b1863025279a5d2a32ec27b4428d1b4
+8254673: Call to JvmtiExport::post_vm_start() was removed by the fix for JDK-8249158
+Reviewed-by: andrew
+
+diff --git openjdk/hotspot/src/share/vm/runtime/thread.cpp openjdk/hotspot/src/share/vm/runtime/thread.cpp
+--- openjdk/hotspot/src/share/vm/runtime/thread.cpp
++++ openjdk/hotspot/src/share/vm/runtime/thread.cpp
+@@ -3496,6 +3496,7 @@
+   JvmtiExport::enter_start_phase();
+ 
+   // Notify JVMTI agents that VM has started (JNI is up) - nop if no agents.
++  JvmtiExport::post_vm_start();
+ 
+   {
+     TraceTime timer("Initialize java.lang classes", TraceStartupTime);
+# HG changeset patch
+# User andrew
+# Date 1602872710 -3600
+#      Fri Oct 16 19:25:10 2020 +0100
+# Node ID 73d58f4c918a1ac874ee30fd2c5cb88eacd6c757
+# Parent  c49a13526ba9db3d8d2fc4669031ba5bd0f3ee05
+8254937: Revert JDK-8148854 for 8u272
+Reviewed-by: aph
+
+diff --git openjdk/hotspot/src/share/vm/classfile/classFileParser.cpp openjdk/hotspot/src/share/vm/classfile/classFileParser.cpp
+--- openjdk/hotspot/src/share/vm/classfile/classFileParser.cpp
++++ openjdk/hotspot/src/share/vm/classfile/classFileParser.cpp
+@@ -3717,16 +3717,6 @@
+   info->has_nonstatic_fields = has_nonstatic_fields;
+ }
+ 
+-static bool relax_format_check_for(ClassLoaderData* loader_data) {
+-  bool trusted = (loader_data->is_the_null_class_loader_data() ||
+-                  SystemDictionary::is_ext_class_loader(loader_data->class_loader()));
+-  bool need_verify =
+-    // verifyAll
+-    (BytecodeVerificationLocal && BytecodeVerificationRemote) ||
+-    // verifyRemote
+-    (!BytecodeVerificationLocal && BytecodeVerificationRemote && !trusted);
+-  return !need_verify;
+-}
+ 
+ instanceKlassHandle ClassFileParser::parseClassFile(Symbol* name,
+                                                     ClassLoaderData* loader_data,
+@@ -3873,7 +3863,7 @@
+ 
+   // Check if verification needs to be relaxed for this class file
+   // Do not restrict it to jdk1.0 or jdk1.1 to maintain backward compatibility (4982376)
+-  _relax_verify = relax_format_check_for(_loader_data);
++  _relax_verify = Verifier::relax_verify_for(class_loader());
+ 
+   // Constant pool
+   constantPoolHandle cp = parse_constant_pool(CHECK_(nullHandle));
+diff --git openjdk/hotspot/src/share/vm/classfile/verifier.cpp openjdk/hotspot/src/share/vm/classfile/verifier.cpp
+--- openjdk/hotspot/src/share/vm/classfile/verifier.cpp
++++ openjdk/hotspot/src/share/vm/classfile/verifier.cpp
+@@ -98,7 +98,7 @@
+     BytecodeVerificationLocal : BytecodeVerificationRemote;
+ }
+ 
+-bool Verifier::relax_access_for(oop loader) {
++bool Verifier::relax_verify_for(oop loader) {
+   bool trusted = java_lang_ClassLoader::is_trusted_loader(loader);
+   bool need_verify =
+     // verifyAll
+diff --git openjdk/hotspot/src/share/vm/classfile/verifier.hpp openjdk/hotspot/src/share/vm/classfile/verifier.hpp
+--- openjdk/hotspot/src/share/vm/classfile/verifier.hpp
++++ openjdk/hotspot/src/share/vm/classfile/verifier.hpp
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright (c) 1998, 2016, Oracle and/or its affiliates. All rights reserved.
++ * Copyright (c) 1998, 2014, Oracle and/or its affiliates. All rights reserved.
+  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
+  *
+  * This code is free software; you can redistribute it and/or modify it
+@@ -57,8 +57,8 @@
+   // -Xverify:all/none override this value
+   static bool should_verify_for(oop class_loader, bool should_verify_class);
+ 
+-  // Relax certain access checks to enable some broken 1.1 apps to run on 1.2.
+-  static bool relax_access_for(oop class_loader);
++  // Relax certain verifier checks to enable some broken 1.1 apps to run on 1.2.
++  static bool relax_verify_for(oop class_loader);
+ 
+  private:
+   static bool is_eligible_for_verification(instanceKlassHandle klass, bool should_verify_class);
+diff --git openjdk/hotspot/src/share/vm/runtime/reflection.cpp openjdk/hotspot/src/share/vm/runtime/reflection.cpp
+--- openjdk/hotspot/src/share/vm/runtime/reflection.cpp
++++ openjdk/hotspot/src/share/vm/runtime/reflection.cpp
+@@ -506,7 +506,7 @@
+       (accessor_ik->major_version() < Verifier::STRICTER_ACCESS_CTRL_CHECK_VERSION &&
+        accessee_ik->major_version() < Verifier::STRICTER_ACCESS_CTRL_CHECK_VERSION)) {
+     return classloader_only &&
+-      Verifier::relax_access_for(accessor_ik->class_loader()) &&
++      Verifier::relax_verify_for(accessor_ik->class_loader()) &&
+       accessor_ik->protection_domain() == accessee_ik->protection_domain() &&
+       accessor_ik->class_loader() == accessee_ik->class_loader();
+   } else {
+diff --git openjdk/hotspot/test/runtime/ClassFile/BadHelloWorld.jcod openjdk/hotspot/test/runtime/ClassFile/BadHelloWorld.jcod
+deleted file mode 100644
+--- openjdk/hotspot/test/runtime/ClassFile/BadHelloWorld.jcod
++++ /dev/null
+@@ -1,138 +0,0 @@
+-/*
+- * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+- * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
+- *
+- * This code is free software; you can redistribute it and/or modify it
+- * under the terms of the GNU General Public License version 2 only, as
+- * published by the Free Software Foundation.
+- *
+- * This code is distributed in the hope that it will be useful, but WITHOUT
+- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+- * version 2 for more details (a copy is included in the LICENSE file that
+- * accompanied this code).
+- *
+- * You should have received a copy of the GNU General Public License version
+- * 2 along with this work; if not, write to the Free Software Foundation,
+- * Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
+- *
+- * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
+- * or visit www.oracle.com if you need additional information or have any
+- * questions.
+- */
+-
+-/*
+- * This file fuzzes the class name #15 to have a leading 'L' and ending ';'.
+- */
+-
+-class BadHelloWorld {
+-  0xCAFEBABE;
+-  0; // minor version
+-  52; // version
+-  [31] { // Constant Pool
+-    ; // first element is empty
+-    Utf8 "BadHelloWorld"; // #1     at 0x0A
+-    class #1; // #2     at 0x1A
+-    Utf8 "java/lang/Object"; // #3     at 0x1D
+-    class #3; // #4     at 0x30
+-    Utf8 "<init>"; // #5     at 0x33
+-    Utf8 "()V"; // #6     at 0x3C
+-    NameAndType #5 #6; // #7     at 0x42
+-    Method #4 #7; // #8     at 0x47
+-    Utf8 "toString"; // #9     at 0x4C
+-    Utf8 "()Ljava/lang/String;"; // #10     at 0x57
+-    Utf8 "Hello, world!"; // #11     at 0x6E
+-    String #11; // #12     at 0x7E
+-    Utf8 "main"; // #13     at 0x81
+-    Utf8 "([Ljava/lang/String;)V"; // #14     at 0x88
+-    Utf8 "LBadHelloWorld;"; // #15     at 0xA1
+-    class #15; // #16     at 0xB3
+-    Method #16 #7; // #17     at 0xB6
+-    Utf8 "java/lang/System"; // #18     at 0xBB
+-    class #18; // #19     at 0xCE
+-    Utf8 "out"; // #20     at 0xD1
+-    Utf8 "Ljava/io/PrintStream;"; // #21     at 0xD7
+-    NameAndType #20 #21; // #22     at 0xEF
+-    Field #19 #22; // #23     at 0xF4
+-    Utf8 "java/io/PrintStream"; // #24     at 0xF9
+-    class #24; // #25     at 0x010F
+-    Utf8 "println"; // #26     at 0x0112
+-    Utf8 "(Ljava/lang/Object;)V"; // #27     at 0x011C
+-    NameAndType #26 #27; // #28     at 0x0134
+-    Method #25 #28; // #29     at 0x0139
+-    Utf8 "Code"; // #30     at 0x013E
+-  } // Constant Pool
+-
+-  0x0021; // access
+-  #2;// this_cpx
+-  #4;// super_cpx
+-
+-  [0] { // Interfaces
+-  } // Interfaces
+-
+-  [0] { // fields
+-  } // fields
+-
+-  [3] { // methods
+-    { // Member at 0x0151
+-      0x0001; // access
+-      #5; // name_cpx
+-      #6; // sig_cpx
+-      [1] { // Attributes
+-        Attr(#30, 17) { // Code at 0x0159
+-          1; // max_stack
+-          1; // max_locals
+-          Bytes[5]{
+-            0x2AB70008B1;
+-          };
+-          [0] { // Traps
+-          } // end Traps
+-          [0] { // Attributes
+-          } // Attributes
+-        } // end Code
+-      } // Attributes
+-    } // Member
+-    ;
+-    { // Member at 0x0170
+-      0x0001; // access
+-      #9; // name_cpx
+-      #10; // sig_cpx
+-      [1] { // Attributes
+-        Attr(#30, 15) { // Code at 0x0178
+-          1; // max_stack
+-          1; // max_locals
+-          Bytes[3]{
+-            0x120CB0;
+-          };
+-          [0] { // Traps
+-          } // end Traps
+-          [0] { // Attributes
+-          } // Attributes
+-        } // end Code
+-      } // Attributes
+-    } // Member
+-    ;
+-    { // Member at 0x018D
+-      0x0089; // access
+-      #13; // name_cpx
+-      #14; // sig_cpx
+-      [1] { // Attributes
+-        Attr(#30, 28) { // Code at 0x0195
+-          2; // max_stack
+-          2; // max_locals
+-          Bytes[16]{
+-            0xBB001059B700114C;
+-            0xB200172BB6001DB1;
+-          };
+-          [0] { // Traps
+-          } // end Traps
+-          [0] { // Attributes
+-          } // Attributes
+-        } // end Code
+-      } // Attributes
+-    } // Member
+-  } // methods
+-
+-  [0] { // Attributes
+-  } // Attributes
+-} // end class BadHelloWorld
+diff --git openjdk/hotspot/test/runtime/ClassFile/FormatCheckingTest.java openjdk/hotspot/test/runtime/ClassFile/FormatCheckingTest.java
+deleted file mode 100644
+--- openjdk/hotspot/test/runtime/ClassFile/FormatCheckingTest.java
++++ /dev/null
+@@ -1,43 +0,0 @@
+-/*
+- * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+- * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
+- *
+- * This code is free software; you can redistribute it and/or modify it
+- * under the terms of the GNU General Public License version 2 only, as
+- * published by the Free Software Foundation.
+- *
+- * This code is distributed in the hope that it will be useful, but WITHOUT
+- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+- * version 2 for more details (a copy is included in the LICENSE file that
+- * accompanied this code).
+- *
+- * You should have received a copy of the GNU General Public License version
+- * 2 along with this work; if not, write to the Free Software Foundation,
+- * Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
+- *
+- * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
+- * or visit www.oracle.com if you need additional information or have any
+- * questions.
+- */
+-
+-/*
+- * @test
+- * @bug 8148854
+- * @summary Ensure class name loaded by app class loader is format checked by default
+- * @library /testlibrary
+- * @compile BadHelloWorld.jcod
+- * @run main FormatCheckingTest
+- */
+-
+-import com.oracle.java.testlibrary.OutputAnalyzer;
+-import com.oracle.java.testlibrary.ProcessTools;
+-
+-public class FormatCheckingTest {
+-    public static void main(String args[]) throws Throwable {
+-        ProcessBuilder pb = ProcessTools.createJavaProcessBuilder("BadHelloWorld");
+-        OutputAnalyzer output = new OutputAnalyzer(pb.start());
+-        output.shouldContain("java.lang.ClassFormatError: Illegal class name");
+-        output.shouldHaveExitValue(1);
+-    }
+-}
+# HG changeset patch
+# User dcherepanov
+# Date 1602886634 -3600
+#      Fri Oct 16 23:17:14 2020 +0100
+# Node ID 7ab1cd9c7843bc587c9d407164bfb7bc2e73e821
+# Parent  73d58f4c918a1ac874ee30fd2c5cb88eacd6c757
+8243302: Advanced class supports
+Reviewed-by: mbalao, andrew
+
+diff --git openjdk/hotspot/src/share/vm/classfile/classFileParser.cpp openjdk/hotspot/src/share/vm/classfile/classFileParser.cpp
+--- openjdk/hotspot/src/share/vm/classfile/classFileParser.cpp
++++ openjdk/hotspot/src/share/vm/classfile/classFileParser.cpp
+@@ -2691,8 +2691,83 @@
+ // Inner classes can be static, private or protected (classic VM does this)
+ #define RECOGNIZED_INNER_CLASS_MODIFIERS (JVM_RECOGNIZED_CLASS_MODIFIERS | JVM_ACC_PRIVATE | JVM_ACC_PROTECTED | JVM_ACC_STATIC)
+ 
++// Find index of the InnerClasses entry for the specified inner_class_info_index.
++// Return -1 if none is found.
++static int inner_classes_find_index(const Array<u2>* inner_classes, int inner, const ConstantPool* cp, int length) {
++  Symbol* cp_klass_name =  cp->klass_name_at(inner);
++  for (int idx = 0; idx < length; idx += InstanceKlass::inner_class_next_offset) {
++    int idx_inner = inner_classes->at(idx + InstanceKlass::inner_class_inner_class_info_offset);
++    if (cp->klass_name_at(idx_inner) == cp_klass_name) {
++      return idx;
++    }
++  }
++  return -1;
++}
++
++// Return the outer_class_info_index for the InnerClasses entry containing the
++// specified inner_class_info_index.  Return -1 if no InnerClasses entry is found.
++static int inner_classes_jump_to_outer(const Array<u2>* inner_classes, int inner, const ConstantPool* cp, int length) {
++  if (inner == 0) return -1;
++  int idx = inner_classes_find_index(inner_classes, inner, cp, length);
++  if (idx == -1) return -1;
++  int result = inner_classes->at(idx + InstanceKlass::inner_class_outer_class_info_offset);
++  return result;
++}
++
++// Return true if circularity is found, false if no circularity is found.
++// Use Floyd's cycle finding algorithm.
++static bool inner_classes_check_loop_through_outer(const Array<u2>* inner_classes, int idx, const ConstantPool* cp, int length) {
++  int slow = inner_classes->at(idx + InstanceKlass::inner_class_inner_class_info_offset);
++  int fast = inner_classes->at(idx + InstanceKlass::inner_class_outer_class_info_offset);
++  while (fast != -1 && fast != 0) {
++    if (slow != 0 && (cp->klass_name_at(slow) == cp->klass_name_at(fast))) {
++      return true;  // found a circularity
++    }
++    fast = inner_classes_jump_to_outer(inner_classes, fast, cp, length);
++    if (fast == -1) return false;
++    fast = inner_classes_jump_to_outer(inner_classes, fast, cp, length);
++    if (fast == -1) return false;
++    slow = inner_classes_jump_to_outer(inner_classes, slow, cp, length);
++    assert(slow != -1, "sanity check");
++  }
++  return false;
++}
++
++// Loop through each InnerClasses entry checking for circularities and duplications
++// with other entries.  If duplicate entries are found then throw CFE.  Otherwise,
++// return true if a circularity or entries with duplicate inner_class_info_indexes
++// are found.
++bool ClassFileParser::check_inner_classes_circularity(const ConstantPool* cp, int length, TRAPS) {
++  // Loop through each InnerClasses entry.
++  for (int idx = 0; idx < length; idx += InstanceKlass::inner_class_next_offset) {
++    // Return true if there are circular entries.
++    if (inner_classes_check_loop_through_outer(_inner_classes, idx, cp, length)) {
++      return true;
++    }
++    // Check if there are duplicate entries or entries with the same inner_class_info_index.
++    for (int y = idx + InstanceKlass::inner_class_next_offset; y < length;
++         y += InstanceKlass::inner_class_next_offset) {
++
++      // To maintain compatibility, throw an exception if duplicate inner classes
++      // entries are found.
++      guarantee_property((_inner_classes->at(idx) != _inner_classes->at(y) ||
++                          _inner_classes->at(idx+1) != _inner_classes->at(y+1) ||
++                          _inner_classes->at(idx+2) != _inner_classes->at(y+2) ||
++                          _inner_classes->at(idx+3) != _inner_classes->at(y+3)),
++                         "Duplicate entry in InnerClasses attribute in class file %s",
++                         CHECK_(true));
++      // Return true if there are two entries with the same inner_class_info_index.
++      if (_inner_classes->at(y) == _inner_classes->at(idx)) {
++        return true;
++      }
++    }
++  }
++  return false;
++}
++
+ // Return number of classes in the inner classes attribute table
+-u2 ClassFileParser::parse_classfile_inner_classes_attribute(u1* inner_classes_attribute_start,
++u2 ClassFileParser::parse_classfile_inner_classes_attribute(const ConstantPool* cp,
++                                                            u1* inner_classes_attribute_start,
+                                                             bool parsed_enclosingmethod_attribute,
+                                                             u2 enclosing_method_class_index,
+                                                             u2 enclosing_method_method_index,
+@@ -2764,25 +2839,28 @@
+   }
+ 
+   // 4347400: make sure there's no duplicate entry in the classes array
++  // Also, check for circular entries.
++  bool has_circularity = false;
+   if (_need_verify && _major_version >= JAVA_1_5_VERSION) {
+-    for(int i = 0; i < length * 4; i += 4) {
+-      for(int j = i + 4; j < length * 4; j += 4) {
+-        guarantee_property((inner_classes->at(i)   != inner_classes->at(j) ||
+-                            inner_classes->at(i+1) != inner_classes->at(j+1) ||
+-                            inner_classes->at(i+2) != inner_classes->at(j+2) ||
+-                            inner_classes->at(i+3) != inner_classes->at(j+3)),
+-                            "Duplicate entry in InnerClasses in class file %s",
+-                            CHECK_0);
++    has_circularity = check_inner_classes_circularity(cp, length * 4, CHECK_0);
++    if (has_circularity) {
++      // If circularity check failed then ignore InnerClasses attribute.
++      MetadataFactory::free_array<u2>(_loader_data, _inner_classes);
++      index = 0;
++      if (parsed_enclosingmethod_attribute) {
++        inner_classes = MetadataFactory::new_array<u2>(_loader_data, 2, CHECK_0);
++        _inner_classes = inner_classes;
++      } else {
++        _inner_classes = Universe::the_empty_short_array();
+       }
+     }
+   }
+-
+   // Set EnclosingMethod class and method indexes.
+   if (parsed_enclosingmethod_attribute) {
+     inner_classes->at_put(index++, enclosing_method_class_index);
+     inner_classes->at_put(index++, enclosing_method_method_index);
+   }
+-  assert(index == size, "wrong size");
++  assert(index == size || has_circularity, "wrong size");
+ 
+   // Restore buffer's current position.
+   cfs->set_current(current_mark);
+@@ -3051,6 +3129,7 @@
+ 
+   if (parsed_innerclasses_attribute || parsed_enclosingmethod_attribute) {
+     u2 num_of_classes = parse_classfile_inner_classes_attribute(
++                            _cp,
+                             inner_classes_attribute_start,
+                             parsed_innerclasses_attribute,
+                             enclosing_method_class_index,
+diff --git openjdk/hotspot/src/share/vm/classfile/classFileParser.hpp openjdk/hotspot/src/share/vm/classfile/classFileParser.hpp
+--- openjdk/hotspot/src/share/vm/classfile/classFileParser.hpp
++++ openjdk/hotspot/src/share/vm/classfile/classFileParser.hpp
+@@ -275,7 +275,12 @@
+   u2 parse_generic_signature_attribute(TRAPS);
+   void parse_classfile_sourcefile_attribute(TRAPS);
+   void parse_classfile_source_debug_extension_attribute(int length, TRAPS);
+-  u2   parse_classfile_inner_classes_attribute(u1* inner_classes_attribute_start,
++
++  // Check for circularity in InnerClasses attribute.
++  bool check_inner_classes_circularity(const ConstantPool* cp, int length, TRAPS);
++
++  u2   parse_classfile_inner_classes_attribute(const ConstantPool* cp,
++                                               u1* inner_classes_attribute_start,
+                                                bool parsed_enclosingmethod_attribute,
+                                                u2 enclosing_method_class_index,
+                                                u2 enclosing_method_method_index,
+diff --git openjdk/hotspot/src/share/vm/oops/constantPool.cpp openjdk/hotspot/src/share/vm/oops/constantPool.cpp
+--- openjdk/hotspot/src/share/vm/oops/constantPool.cpp
++++ openjdk/hotspot/src/share/vm/oops/constantPool.cpp
+@@ -504,7 +504,7 @@
+ }
+ 
+ 
+-Symbol* ConstantPool::klass_name_at(int which) {
++Symbol* ConstantPool::klass_name_at(int which) const {
+   assert(tag_at(which).is_unresolved_klass() || tag_at(which).is_klass(),
+          "Corrupted constant pool");
+   // A resolved constantPool entry will contain a Klass*, otherwise a Symbol*.
+diff --git openjdk/hotspot/src/share/vm/oops/constantPool.hpp openjdk/hotspot/src/share/vm/oops/constantPool.hpp
+--- openjdk/hotspot/src/share/vm/oops/constantPool.hpp
++++ openjdk/hotspot/src/share/vm/oops/constantPool.hpp
+@@ -125,7 +125,7 @@
+  private:
+   intptr_t* base() const { return (intptr_t*) (((char*) this) + sizeof(ConstantPool)); }
+ 
+-  CPSlot slot_at(int which) {
++  CPSlot slot_at(int which) const {
+     assert(is_within_bounds(which), "index out of bounds");
+     // Uses volatile because the klass slot changes without a lock.
+     volatile intptr_t adr = (intptr_t)OrderAccess::load_ptr_acquire(obj_at_addr_raw(which));
+@@ -353,7 +353,7 @@
+     return klass_at_impl(h_this, which, CHECK_NULL);
+   }
+ 
+-  Symbol* klass_name_at(int which);  // Returns the name, w/o resolving.
++  Symbol* klass_name_at(int which) const;  // Returns the name, w/o resolving.
+ 
+   Klass* resolved_klass_at(int which) const {  // Used by Compiler
+     guarantee(tag_at(which).is_klass(), "Corrupted constant pool");
+# HG changeset patch
+# User yan
+# Date 1594143039 25200
+#      Tue Jul 07 10:30:39 2020 -0700
+# Node ID 6b836efa38fef1b50ba798b6e344ab44ee995812
+# Parent  7ab1cd9c7843bc587c9d407164bfb7bc2e73e821
+8245412: Better class definitions
+Reviewed-by: mbalao, andrew
+Contributed-by: Ekaterina Vergizova <katya@azul.com>
+
+diff --git openjdk/hotspot/src/share/vm/classfile/systemDictionary.cpp openjdk/hotspot/src/share/vm/classfile/systemDictionary.cpp
+--- openjdk/hotspot/src/share/vm/classfile/systemDictionary.cpp
++++ openjdk/hotspot/src/share/vm/classfile/systemDictionary.cpp
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
++ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
+  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
+  *
+  * This code is free software; you can redistribute it and/or modify it
+@@ -1074,6 +1074,18 @@
+   return k();
+ }
+ 
++static bool is_prohibited_package_slow(Symbol* class_name) {
++  // Caller has ResourceMark
++  int length;
++  jchar* unicode = class_name->as_unicode(length);
++  return (length >= 5 &&
++          unicode[0] == 'j' &&
++          unicode[1] == 'a' &&
++          unicode[2] == 'v' &&
++          unicode[3] == 'a' &&
++          unicode[4] == '/');
++}
++
+ // Add a klass to the system from a stream (called by jni_DefineClass and
+ // JVM_DefineClass).
+ // Note: class_name can be NULL. In that case we do not know the name of
+@@ -1121,24 +1133,33 @@
+   if (!HAS_PENDING_EXCEPTION &&
+       !class_loader.is_null() &&
+       parsed_name != NULL &&
+-      parsed_name->utf8_length() >= (int)pkglen &&
+-      !strncmp((const char*)parsed_name->bytes(), pkg, pkglen)) {
+-    // It is illegal to define classes in the "java." package from
+-    // JVM_DefineClass or jni_DefineClass unless you're the bootclassloader
++      parsed_name->utf8_length() >= (int)pkglen) {
+     ResourceMark rm(THREAD);
+-    char* name = parsed_name->as_C_string();
+-    char* index = strrchr(name, '/');
+-    assert(index != NULL, "must be");
+-    *index = '\0'; // chop to just the package name
+-    while ((index = strchr(name, '/')) != NULL) {
+-      *index = '.'; // replace '/' with '.' in package name
++    bool prohibited;
++    const jbyte* base = parsed_name->base();
++    if ((base[0] | base[1] | base[2] | base[3] | base[4]) & 0x80) {
++      prohibited = is_prohibited_package_slow(parsed_name);
++    } else {
++      char* name = parsed_name->as_C_string();
++      prohibited = (strncmp(name, pkg, pkglen) == 0);
+     }
+-    const char* fmt = "Prohibited package name: %s";
+-    size_t len = strlen(fmt) + strlen(name);
+-    char* message = NEW_RESOURCE_ARRAY(char, len);
+-    jio_snprintf(message, len, fmt, name);
+-    Exceptions::_throw_msg(THREAD_AND_LOCATION,
+-      vmSymbols::java_lang_SecurityException(), message);
++    if (prohibited) {
++      // It is illegal to define classes in the "java." package from
++      // JVM_DefineClass or jni_DefineClass unless you're the bootclassloader
++      char* name = parsed_name->as_C_string();
++      char* index = strrchr(name, '/');
++      assert(index != NULL, "must be");
++      *index = '\0'; // chop to just the package name
++      while ((index = strchr(name, '/')) != NULL) {
++        *index = '.'; // replace '/' with '.' in package name
++      }
++      const char* fmt = "Prohibited package name: %s";
++      size_t len = strlen(fmt) + strlen(name);
++      char* message = NEW_RESOURCE_ARRAY(char, len);
++      jio_snprintf(message, len, fmt, name);
++      Exceptions::_throw_msg(THREAD_AND_LOCATION,
++        vmSymbols::java_lang_SecurityException(), message);
++    }
+   }
+ 
+   if (!HAS_PENDING_EXCEPTION) {
+# HG changeset patch
+# User andrew
+# Date 1602903033 -3600
+#      Sat Oct 17 03:50:33 2020 +0100
+# Node ID 2b157fcd439c9bea6d5a76fad85ee4c1b10aa185
+# Parent  6b836efa38fef1b50ba798b6e344ab44ee995812
+Added tag jdk8u272-b10 for changeset 6b836efa38fe
+
+diff --git openjdk/hotspot/.hgtags openjdk/hotspot/.hgtags
+--- openjdk/hotspot/.hgtags
++++ openjdk/hotspot/.hgtags
+@@ -1330,3 +1330,4 @@
+ 4689eaf1a5c9c5e284d466631420761f4bd4ecae jdk8u272-b07
+ a0eb08e2db5a40956a9c2d6b7dea76a894559033 jdk8u272-b08
+ 176a7e5cc0609cface769e5e8a31b00700d223ba jdk8u272-b09
++6b836efa38fef1b50ba798b6e344ab44ee995812 jdk8u272-b10
+# HG changeset patch
+# User andrew
+# Date 1603244995 -3600
+#      Wed Oct 21 02:49:55 2020 +0100
+# Node ID 73f624a2488da02a1e5213cb3a53a3ba262cee66
+# Parent  2b157fcd439c9bea6d5a76fad85ee4c1b10aa185
+Added tag jdk8u272-ga for changeset 6b836efa38fe
+
+diff --git openjdk/hotspot/.hgtags openjdk/hotspot/.hgtags
+--- openjdk/hotspot/.hgtags
++++ openjdk/hotspot/.hgtags
+@@ -1331,3 +1331,4 @@
+ a0eb08e2db5a40956a9c2d6b7dea76a894559033 jdk8u272-b08
+ 176a7e5cc0609cface769e5e8a31b00700d223ba jdk8u272-b09
+ 6b836efa38fef1b50ba798b6e344ab44ee995812 jdk8u272-b10
++6b836efa38fef1b50ba798b6e344ab44ee995812 jdk8u272-ga

@@ -1,0 +1,23 @@
+# these tests tend to take too long on zero hotspot or armhf
+compiler/5091921/Test6905845.java                         linux-all
+compiler/5091921/Test6992759.java                         linux-all
+compiler/5091921/Test7020614.java                         linux-all
+compiler/6901572/Test.java                                linux-all
+compiler/7100757/Test7100757.java                         linux-all
+compiler/7119644/TestCharShortVect.java                   linux-all
+compiler/7184394/TestAESMain.java                         linux-all
+compiler/7196199/Test7196199.java                         linux-all
+compiler/8004867/TestIntUnsafeOrdered.java                linux-all
+compiler/8209951/TestCipherBlockChainingEncrypt.java      linux-all
+compiler/intrinsics/multiplytolen/TestMultiplyToLen.java  linux-all
+compiler/intrinsics/sha/sanity/TestSHA1Intrinsics.java    linux-all
+compiler/intrinsics/sha/TestSHA.java                      linux-all
+compiler/loopopts/BadPredicateAfterPartialPeel.java       linux-all
+compiler/loopopts/UseCountedLoopSafepoints.java           linux-all
+compiler/uncommontrap/UncommonTrapStackBang.java          linux-all
+gc/g1/TestStringDeduplicationAgeThreshold.java            linux-all
+gc/g1/TestStringDeduplicationInterned.java                linux-all
+gc/g1/TestStringDeduplicationTableRehash.java             linux-all
+gc/g1/TestStringDeduplicationYoungGC.java                 linux-all
+runtime/memory/LargePages/TestLargePagesFlags.java        linux-all
+runtime/Metaspace/FragmentMetaspaceSimple.java            linux-all

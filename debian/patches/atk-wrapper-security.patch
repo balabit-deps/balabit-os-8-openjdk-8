@@ -1,0 +1,10 @@
+--- a/jdk/src/share/lib/security/java.security-linux
++++ b/jdk/src/share/lib/security/java.security-linux
+@@ -186,6 +186,7 @@ keystore.type.compat=true
+ # corresponding RuntimePermission ("accessClassInPackage."+package) has
+ # been granted.
+ package.access=sun.,\
++               org.GNOME.Accessibility.,\
+                com.sun.xml.internal.,\
+                com.sun.imageio.,\
+                com.sun.istack.internal.,\

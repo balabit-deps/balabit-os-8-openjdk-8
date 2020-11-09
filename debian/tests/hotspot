@@ -1,0 +1,22 @@
+#!/bin/bash 
+set -o errexit
+set -o errtrace
+set -o pipefail
+set -o nounset
+
+[ -d hotspot/test ] || tar xf hotspot.tar.xz hotspot/test/
+
+host_arch="${DEB_HOST_ARCH:-$(dpkg --print-architecture)}"
+
+exclude_tests=''
+if ! grep -q -w "${host_arch}" debian/tests/hotspot-archs || [ "${host_arch}" = "armhf" ]; then
+  echo "Warning: architecture ${host_arch} isn't listed in debian/tests/hotspot-archs. Restricting slow tests from being run."
+  exclude_tests="-exclude:debian/tests/hotspot-problem-list-slow.txt "
+fi
+
+debian/tests/jtreg-autopkgtest.sh hotspot \
+    -dir:hotspot/test \
+    ${exclude_tests} \
+    compiler gc runtime sanity serviceability || true
+
+debian/tests/jtdiff-autopkgtest.sh hotspot

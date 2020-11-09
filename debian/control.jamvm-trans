@@ -1,0 +1,12 @@
+
+Package: openjdk-8-jre-jamvm
+Architecture: amd64 i386
+Multi-Arch: same
+Priority: extra
+Pre-Depends: ${dpkg:Depends}
+Depends: @basename@-jre-headless (= ${binary:Version}), ${shlibs:Depends}, ${misc:Depends}
+Description: Transitional package for obsolete JamVM for OpenJDK
+ JamVM support was removed for recent versions of OpenJDK 8.
+ .
+ This is a transitional package which can be safely removed.
+
