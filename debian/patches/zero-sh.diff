@@ -2,20 +2,18 @@
 
 --- a/hotspot/src/os/linux/vm/os_linux.cpp
 +++ b/hotspot/src/os/linux/vm/os_linux.cpp
-@@ -1971,7 +1971,8 @@ void * os::dll_load(const char *filename
-     {EM_MIPS_RS3_LE, EM_MIPS_RS3_LE, ELFCLASS32, ELFDATA2LSB, (char*)"MIPSel"},
-     {EM_MIPS,        EM_MIPS,    ELFCLASS32, ELFDATA2MSB, (char*)"MIPS"},
+@@ -1971,6 +1971,7 @@ void * os::dll_load(const char *filename
      {EM_PARISC,      EM_PARISC,  ELFCLASS32, ELFDATA2MSB, (char*)"PARISC"},
--    {EM_68K,         EM_68K,     ELFCLASS32, ELFDATA2MSB, (char*)"M68k"}
-+    {EM_68K,         EM_68K,     ELFCLASS32, ELFDATA2MSB, (char*)"M68k"},
+     {EM_68K,         EM_68K,     ELFCLASS32, ELFDATA2MSB, (char*)"M68k"}
+     {EM_AARCH64,     EM_AARCH64, ELFCLASS64, ELFDATA2LSB, (char*)"AARCH64"},
 +    {EM_SH,          EM_SH,      ELFCLASS32, ELFDATA2LSB, (char*)"Hitachi SH"}
    };
  
    #if  (defined IA32)
 @@ -2002,9 +2003,11 @@ void * os::dll_load(const char *filename
-     static  Elf32_Half running_arch_code=EM_MIPS;
-   #elif  (defined M68K)
      static  Elf32_Half running_arch_code=EM_68K;
+   #elif  (defined AARCH64)
+     static  Elf32_Half running_arch_code=EM_AARCH64;
 +  #elif  (defined ZERO_SH)
 +    static  Elf32_Half running_arch_code=EM_SH;
    #else

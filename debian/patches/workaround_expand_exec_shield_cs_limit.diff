@@ -9,14 +9,3 @@
    size_t page_size = os::vm_page_size();
  
    /*
---- a/hotspot/src/os/linux/vm/os_linux.cpp
-+++ b/hotspot/src/os/linux/vm/os_linux.cpp
-@@ -5143,7 +5143,7 @@ ZERO_ONLY (
- 
-   Linux::capture_initial_stack(JavaThread::stack_size_at_create());
- 
--#if defined(IA32)
-+#if defined(IA32) && !defined(ZERO)
-   workaround_expand_exec_shield_cs_limit();
- #endif
- 

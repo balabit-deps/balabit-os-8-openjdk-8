@@ -1,8 +1,23 @@
-openjdk-8 (8u275-b01-0ubuntu1~20.04) focal-security; urgency=medium
+openjdk-8 (8u282-b08-0ubuntu1~20.04) focal-security; urgency=medium
 
   * Backport from Hirsute.
 
- -- Tiago Stürmer Daitx <tiago.daitx@ubuntu.com>  Mon, 09 Nov 2020 02:38:58 +0000
+ -- Tiago Stürmer Daitx <tiago.daitx@ubuntu.com>  Wed, 20 Jan 2021 03:59:41 +0000
+
+openjdk-8 (8u282-b08-0ubuntu1) hirsute; urgency=medium
+
+  * Update to 8u282-b08 (GA).
+  * Update AArch64 hotspot to 8u282-b07 and AArch32 hotspot to 8u282-b07.
+
+ -- Tiago Stürmer Daitx <tiago.daitx@ubuntu.com>  Wed, 20 Jan 2021 00:48:04 +0000
+
+openjdk-8 (8u282-b07-0ubuntu1) hirsute; urgency=medium
+
+  * Update to 8u282-b07 (early access build).
+  * Update AArch64 hotspot to 8u282-b03 and AArch32 hotspot to 8u282-b06.
+  * Update patches.
+
+ -- Tiago Stürmer Daitx <tiago.daitx@ubuntu.com>  Thu, 07 Jan 2021 00:16:35 +0000
 
 openjdk-8 (8u275-b01-0ubuntu1) hirsute; urgency=medium
 

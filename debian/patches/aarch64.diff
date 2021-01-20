@@ -18,17 +18,6 @@
  	| alpha-* | alphaev[4-8]-* | alphaev56-* | alphaev6[78]-* \
  	| alpha64-* | alpha64ev[4-8]-* | alpha64ev56-* | alpha64ev6[78]-* \
  	| alphapca5[67]-* | alpha64pca5[67]-* | arc-* \
---- a/jdk/make/gensrc/GensrcMisc.gmk
-+++ b/jdk/make/gensrc/GensrcMisc.gmk
-@@ -76,7 +76,7 @@ $(eval $(call SetupNativeCompilation,BUI
-     INCLUDE_FILES := $(GENSRC_SOR_SRC_FILE), \
-     LANG := C, \
-     CC := $(BUILD_CC), \
--    LDEXE := $(BUILD_LD), \
-+    LDEXE := $(BUILD_CC), \
-     OBJECT_DIR := $(GENSRC_SOR_BIN), \
-     OUTPUT_DIR := $(GENSRC_SOR_BIN), \
-     PROGRAM := genSocketOptionRegistry))
 --- a/jdk/make/lib/SoundLibraries.gmk
 +++ b/jdk/make/lib/SoundLibraries.gmk
 @@ -143,6 +143,10 @@ else

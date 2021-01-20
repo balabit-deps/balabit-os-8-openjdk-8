@@ -433,13 +433,6 @@ ifneq (,$(filter $(DEB_HOST_ARCH), kfreebsd-amd64 kfreebsd-i386))
 	kfreebsd-support-hotspot.diff
 endif
 
-# jdk8u275-b01 hotspot patch, missing from aarch32 and aarch64 repos
-ifneq (,$(filter $(DEB_HOST_ARCH),$(hotspot_aarch64_archs) $(hotspot_aarch32_archs)))
-  COMMON_PATCHES += \
-	hotspot-openjdk8u275-b01-S8250861.patch
-endif
-
-
 DEFAULT_PATCHES = \
 	$(COMMON_PATCHES) \
 	hotspot-libpath-$(hotspot_version).diff
@@ -2002,24 +1995,24 @@ endif
 is_release		=
 is_release		= yes
 hg_project		= jdk8u
-hg_tag			= jdk8u272-b10
+hg_tag			= jdk8u282-b08
 package_version		= $(subst jdk,,$(hg_tag))
 ifneq ($(is_release),yes)
   package_version	:= $(subst -,~,$(package_version))
 endif
 hg_url			= http://hg.openjdk.java.net/jdk8u/$(hg_project)
 hg_project_aarch64	= jdk8u-shenandoah
-hg_tag_aarch64		= aarch64-shenandoah-jdk8u272-b10
+hg_tag_aarch64		= aarch64-shenandoah-jdk8u282-b06
 hg_url_aarch64		= http://hg.openjdk.java.net/aarch64-port/$(hg_project_aarch64)
 hg_project_aarch32	= jdk8u
-hg_tag_aarch32		= jdk8u272-b10-aarch32-20201026
+hg_tag_aarch32		= jdk8u282-b07-aarch32-20210111
 hg_url_aarch32		= http://hg.openjdk.java.net/aarch32-port/$(hg_project_aarch32)
 origdir			= ../openjdk-8-$(package_version).orig
 orig_tarball		= ../openjdk-8_$(package_version).orig.tar.xz
 source_date		:= $(shell dpkg-parsechangelog | sed -n '/^Date: /{s///p;q;}')
 fetch-orig:
 	mkdir -p $(origdir)
-	wget -O $(origdir)/root.tar.bz2 $(hg_url)/archive/$(hg_tag).tar.bz2
+	wget -c -O $(origdir)/root.tar.bz2 $(hg_url)/archive/$(hg_tag).tar.bz2
 	for repo in corba jaxp jaxws langtools hotspot jdk nashorn; do \
 	  echo wget -O $(origdir)/$$repo.tar.bz2 \
 	    $(hg_url)/$$repo/archive/$(hg_tag).tar.bz2; \
