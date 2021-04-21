@@ -1,8 +1,23 @@
-openjdk-8 (8u282-b08-0ubuntu1~20.04) focal-security; urgency=medium
+openjdk-8 (8u292-b10-0ubuntu1~20.04) focal-security; urgency=medium
 
-  * Backport from Hirsute.
+  * Backport the security update to 20.04 LTS.
 
- -- Tiago Stürmer Daitx <tiago.daitx@ubuntu.com>  Wed, 20 Jan 2021 03:59:41 +0000
+ -- Matthias Klose <doko@ubuntu.com>  Wed, 21 Apr 2021 13:46:09 +0200
+
+openjdk-8 (8u292-b10-0ubuntu1) hirsute; urgency=medium
+
+  * Update to 8u292-b10 (GA).
+  * Security fixes
+    - JDK-8227467: Better class method invocations
+    - JDK-8244473: Contextualize registration for JNDI
+    - JDK-8244543: Enhanced handling of abstract classes
+    - JDK-8249906, CVE-2021-2163: Enhance opening JARs
+    - JDK-8250568, CVE-2021-2161: Less ambiguous processing
+    - JDK-8253799: Make lists of normal filenames
+  * Other changes:
+    See https://mail.openjdk.java.net/pipermail/jdk8u-dev/2021-April/013680.html
+
+ -- Matthias Klose <doko@ubuntu.com>  Wed, 21 Apr 2021 12:25:15 +0200
 
 openjdk-8 (8u282-b08-0ubuntu1) hirsute; urgency=medium
 

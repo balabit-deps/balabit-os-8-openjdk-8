@@ -7,7 +7,7 @@ Uploaders: Matthias Klose <doko@ubuntu.com>
 Build-Depends: debhelper (>= 9), quilt, m4, lsb-release, zip, unzip,
   sharutils, gawk, cpio, pkg-config, procps, wdiff, tzdata,
   xvfb@nocheck@, xauth@nocheck@, xfonts-base@nocheck@, libgl1-mesa-dri [!x32]@nocheck@, xfwm4@nocheck@, x11-xkb-utils@nocheck@, dbus-x11@nocheck@,
-  jtreg@nocheck@, testng@nocheck@, default-jre-headless (>= 2:1.8)@nocheck@, time,
+  jtreg@nocheck@, testng@nocheck@, time,
   @bd_fastjar@
   @bd_autotools@ @bd_ant@
   @bd_gcc@

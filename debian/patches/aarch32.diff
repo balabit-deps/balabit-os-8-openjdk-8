@@ -21,9 +21,9 @@
 +  if test "x$OPENJDK_TARGET_CPU" = xaarch32; then
 +    INCLUDE_SA=false
 +  fi
-   if test "x$OPENJDK_TARGET_CPU" = xaarch64; then
-     INCLUDE_SA=false
-   fi
+   AC_SUBST(INCLUDE_SA)
+ 
+   if test "x$OPENJDK_TARGET_OS" = "xmacosx"; then
 --- a/common/autoconf/platform.m4
 +++ b/common/autoconf/platform.m4
 @@ -56,8 +56,8 @@ AC_DEFUN([PLATFORM_EXTRACT_VARS_FROM_CPU
@@ -166,7 +166,7 @@
 +-client IGNORE
 --- a/hotspot/make/defs.make
 +++ b/hotspot/make/defs.make
-@@ -333,6 +333,11 @@ ifneq ($(OSNAME),windows)
+@@ -335,6 +335,11 @@ ifneq ($(OSNAME),windows)
    LIBARCH/ppc64   = ppc64
    LIBARCH/aarch32 = aarch32
  
@@ -175,6 +175,6 @@
 +    LIBARCH = arm
 +  endif
 +
-   LP64_ARCH += sparcv9 amd64 ia64 ppc64 zero
+   LP64_ARCH += sparcv9 amd64 ia64 ppc64 aarch64 zero
  endif
  

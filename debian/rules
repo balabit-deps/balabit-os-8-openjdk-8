@@ -251,16 +251,16 @@ ifneq (,$(filter $(distrel),squeeze lucid))
 else ifneq (,$(filter $(distrel),wheezy quantal raring))
   export CC = gcc-4.7
   export CXX = g++-4.7
-else ifneq (,$(filter $(distrel),precise))
-  export CC = gcc-4.6
-  export CXX = g++-4.6
-else ifneq (,$(filter $(distrel),saucy trusty))
+#else ifneq (,$(filter $(distrel),precise))
+#  export CC = gcc-4.6
+#  export CXX = g++-4.6
+else ifneq (,$(filter $(distrel),saucy))
   export CC = gcc-4.8
   export CXX = g++-4.8
 else ifneq (,$(filter $(distrel),utopic vivid jessie))
   export CC = gcc-4.9
   export CXX = g++-4.9
-else ifneq (,$(filter $(distrel),wily xenial))
+else ifneq (,$(filter $(distrel),wily))
   export CC = $(DEB_HOST_GNU_TYPE)-gcc-5
   export CXX = $(DEB_HOST_GNU_TYPE)-g++-5
 else ifneq (,$(filter $(distrel),zesty stretch))
@@ -269,7 +269,8 @@ else ifneq (,$(filter $(distrel),zesty stretch))
 else ifneq (,$(filter $(distrel),artful bionic))
   export CC = $(DEB_HOST_GNU_TYPE)-gcc-7
   export CXX = $(DEB_HOST_GNU_TYPE)-g++-7
-else ifneq (,$(filter $(distrel),buster))
+#else ifneq (,$(filter $(distrel),buster precise trusty))
+else ifneq (,$(filter $(distrel),buster precise))
   export CC = $(DEB_HOST_GNU_TYPE)-gcc-8
   export CXX = $(DEB_HOST_GNU_TYPE)-g++-8
 else
@@ -365,7 +366,6 @@ COMMON_PATCHES = \
 	compiler-flags.diff \
 	jdk-841269-filechooser.patch \
 	jdk-i18n-pt_BR.diff \
-	jdk-java-nio-bits-unligned-aarch64.diff \
 	hotspot-ia64.diff \
 
 # FIXME:
@@ -421,10 +421,8 @@ endif
 # set LIBARCH/aarch32 to arm
 ifneq (,$(filter $(DEB_HOST_ARCH), $(hotspot_aarch32_archs)))
   COMMON_PATCHES += \
-	aarch32.diff
-else
-  COMMON_PATCHES += \
-	enable-sa-on-aarch64.diff
+	aarch32.diff \
+	aarch32-update.diff
 endif
 
 ifneq (,$(filter $(DEB_HOST_ARCH), kfreebsd-amd64 kfreebsd-i386))
@@ -577,7 +575,14 @@ COMMON_CONFIGURE_ARGS += \
 	--with-libjpeg=system \
 	--with-lcms=system \
 	--with-libpcsclite=system \
+
+ifneq (,$(filter $(distrel),precise trusty))
+  COMMON_CONFIGURE_ARGS += \
+	--with-stdc++lib=static
+else
+  COMMON_CONFIGURE_ARGS += \
 	--with-stdc++lib=dynamic
+endif
 
 ifneq (,$(NJOBS))
   COMMON_CONFIGURE_ARGS += --with-num-cores=$(NJOBS)
@@ -659,13 +664,13 @@ endif
 # This section should be in sync with "CC/CXX" definition
 ifneq (,$(filter $(distrel),squeeze lucid))
   bd_gcc = g++-4.4 (>= 4.4.1),
-else ifneq (,$(filter $(distrel), precise))
-  bd_gcc = g++-4.6,
+#else ifneq (,$(filter $(distrel), precise))
+#  bd_gcc = g++-4.6,
 else ifneq (,$(filter $(distrel), wheezy))
   bd_gcc = g++-4.7, g++-4.4 [mips mipsel],
 else ifneq (,$(filter $(distrel), quantal raring))
   bd_gcc = g++-4.7,
-else ifneq (,$(filter $(distrel), saucy trusty))
+else ifneq (,$(filter $(distrel), saucy))
   bd_gcc = g++-4.8,
 else ifneq (,$(filter $(distrel),utopic vivid jessie))
   bd_gcc = g++-4.9,
@@ -675,7 +680,8 @@ else ifneq (,$(filter $(distrel),stretch zesty))
   bd_gcc = g++-6,
 else ifneq (,$(filter $(distrel),artful bionic))
   bd_gcc = g++-7,
-else ifneq (,$(filter $(distrel),buster))
+#else ifneq (,$(filter $(distrel),buster precise trusty))
+else ifneq (,$(filter $(distrel),buster precise))
   bd_gcc = g++-8,
 else
   bd_gcc = g++-9,
@@ -1995,17 +2001,17 @@ endif
 is_release		=
 is_release		= yes
 hg_project		= jdk8u
-hg_tag			= jdk8u282-b08
+hg_tag			= jdk8u292-b10
 package_version		= $(subst jdk,,$(hg_tag))
 ifneq ($(is_release),yes)
   package_version	:= $(subst -,~,$(package_version))
 endif
 hg_url			= http://hg.openjdk.java.net/jdk8u/$(hg_project)
 hg_project_aarch64	= jdk8u-shenandoah
-hg_tag_aarch64		= aarch64-shenandoah-jdk8u282-b06
+hg_tag_aarch64		= aarch64-shenandoah-jdk8u292-b10
 hg_url_aarch64		= http://hg.openjdk.java.net/aarch64-port/$(hg_project_aarch64)
 hg_project_aarch32	= jdk8u
-hg_tag_aarch32		= jdk8u282-b07-aarch32-20210111
+hg_tag_aarch32		= jdk8u292-b09-aarch32-20210330
 hg_url_aarch32		= http://hg.openjdk.java.net/aarch32-port/$(hg_project_aarch32)
 origdir			= ../openjdk-8-$(package_version).orig
 orig_tarball		= ../openjdk-8_$(package_version).orig.tar.xz
