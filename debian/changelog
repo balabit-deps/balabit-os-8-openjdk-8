@@ -1,8 +1,69 @@
-openjdk-8 (8u292-b10-0ubuntu1~20.04) focal-security; urgency=medium
+openjdk-8 (8u312-b07-0ubuntu1~20.04) focal-security; urgency=medium
 
-  * Backport the security update to 20.04 LTS.
+  * Security update for Ubuntu 20.04.
 
- -- Matthias Klose <doko@ubuntu.com>  Wed, 21 Apr 2021 13:46:09 +0200
+ -- Matthias Klose <doko@ubuntu.com>  Wed, 03 Nov 2021 15:54:59 +0200
+
+openjdk-8 (8u312-b07-0ubuntu1) jammy; urgency=medium
+
+  * Update to 8u312-b07 (GA).
+  * Security fixes
+    - JDK-8130183, CVE-2021-35588: InnerClasses: VM permits wrong Throw
+      ClassFormatError if InnerClasses attribute's inner_class_info_index is 0.
+    - JDK-8161016: Strange behavior of URLConnection with proxy.
+    - JDK-8163326, CVE-2021-35550: Update the default enabled cipher suites
+      preference.
+    - JDK-8254967, CVE-2021-35565: com.sun.net.HttpsServer spins on TLS
+      session close.
+    - JDK-8263314: Enhance XML Dsig modes.
+    - JDK-8265167, CVE-2021-35556: Richer Text Editors.
+    - JDK-8265574: Improve handling of sheets.
+    - JDK-8265580, CVE-2021-35559: Enhanced style for RTF kit.
+    - JDK-8265776: Improve Stream handling for SSL.
+    - JDK-8266097, CVE-2021-35561: Better hashing support.
+    - JDK-8266103: Better specified spec values.
+    - JDK-8266109: More Resilient Classloading.
+    - JDK-8266115: More Manifest Jar Loading.
+    - JDK-8266137, CVE-2021-35564: Improve Keystore integrity.
+    - JDK-8266689, CVE-2021-35567: More Constrained Delegation.
+    - JDK-8267086: ArrayIndexOutOfBoundsException in
+      java.security.KeyFactory.generatePublic.
+    - JDK-8267712: Better LDAP reference processing.
+    - JDK-8267729, CVE-2021-35578: Improve TLS client handshaking.
+    - JDK-8267735, CVE-2021-35586: Better BMP support.
+    - JDK-8268193: Improve requests of certificates.
+    - JDK-8268199: Correct certificate requests.
+    - JDK-8268506: More Manifest Digests.
+    - JDK-8269618, CVE-2021-35603: Better session identification.
+    - JDK-8269624: Enhance method selection support.
+    - JDK-8270398: Enhance canonicalization.
+    - JDK-8270404: Better canonicalization.
+  * Use mktemp instead of tempfile in maintainer script.
+
+ -- Matthias Klose <doko@ubuntu.com>  Wed, 03 Nov 2021 14:27:30 +0200
+
+openjdk-8 (8u302-b08-0ubuntu2) impish; urgency=medium
+
+  * Update to 8u302-b08 (GA).
+  * Security fixes
+    - JDK-8256157: Improve bytecode assembly
+    - JDK-8256491: Better HTTP transport
+    - JDK-8258432, CVE-2021-2341: Improve file transfers
+    - JDK-8260453: Improve Font Bounding
+    - JDK-8260960: Signs of jarsigner signing
+    - JDK-8260967, CVE-2021-2369: Better jar file validation
+    - JDK-8262380: Enhance XML processing passes
+    - JDK-8262403: Enhanced data transfer
+    - JDK-8262410: Enhanced rules for zones
+    - JDK-8262477: Enhance String Conclusions
+    - JDK-8262967: Improve Zip file support
+    - JDK-8264066, CVE-2021-2388: Enhance compiler validation
+    - JDK-8264079: Improve abstractions
+    - JDK-8264460: Improve NTLM support
+  * Other changes:
+    See https://mail.openjdk.java.net/pipermail/jdk8u-dev/2021-July/014118.html
+
+ -- Matthias Klose <doko@ubuntu.com>  Mon, 23 Aug 2021 16:45:43 +0200
 
 openjdk-8 (8u292-b10-0ubuntu1) hirsute; urgency=medium
 

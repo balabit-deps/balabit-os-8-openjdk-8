@@ -109,7 +109,7 @@ configure)
     # activate class data sharing
     case @archdir@ in i386|sparc)
 	rm -f $basedir/jre/lib/@archdir@/client/classes.jsa
-	log=$(tempfile)
+	log=$(mktemp)
 	if ! $basedir/bin/java -client -Xshare:dump -XX:PermSize=128m > $log; then
 	    cat >&2 $log
 	    rm -f $log
@@ -121,7 +121,7 @@ configure)
     esac
     case @archdir@ in amd64|i386|sparc)
 	rm -f $basedir/jre/lib/@archdir@/server/classes.jsa
-	log=$(tempfile)
+	log=$(mktemp)
 	if ! $basedir/bin/java -server -Xshare:dump > $log; then
 	    cat >&2 $log
 	    rm -f $log

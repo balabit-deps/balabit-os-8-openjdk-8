@@ -132,6 +132,9 @@ with_check = $(if $(findstring nocheck, $(DEB_BUILD_OPTIONS)),,yes)
 ifneq (,$(filter $(DEB_HOST_ARCH), armel))
   with_check = disabled running check on $(DEB_HOST_ARCH)
 endif
+ifneq (,$(filter $(distrel),precise))
+  with_check = disabled running check on $(distrel)
+endif
 #with_check = disabled for this build
 
 with_docs = $(if $(findstring nodoc, $(DEB_BUILD_OPTIONS)),,yes)
@@ -260,7 +263,7 @@ else ifneq (,$(filter $(distrel),saucy))
 else ifneq (,$(filter $(distrel),utopic vivid jessie))
   export CC = gcc-4.9
   export CXX = g++-4.9
-else ifneq (,$(filter $(distrel),wily))
+else ifneq (,$(filter $(distrel),xenial wily))
   export CC = $(DEB_HOST_GNU_TYPE)-gcc-5
   export CXX = $(DEB_HOST_GNU_TYPE)-g++-5
 else ifneq (,$(filter $(distrel),zesty stretch))
@@ -273,9 +276,12 @@ else ifneq (,$(filter $(distrel),artful bionic))
 else ifneq (,$(filter $(distrel),buster precise))
   export CC = $(DEB_HOST_GNU_TYPE)-gcc-8
   export CXX = $(DEB_HOST_GNU_TYPE)-g++-8
-else
+else ifneq (,$(filter $(distrel),trusty xenial bionic focal hirsute))
   export CC = $(DEB_HOST_GNU_TYPE)-gcc-9
   export CXX = $(DEB_HOST_GNU_TYPE)-g++-9
+else
+  export CC = $(DEB_HOST_GNU_TYPE)-gcc-11
+  export CXX = $(DEB_HOST_GNU_TYPE)-g++-11
 endif
 
 ifneq (,$(filter $(DEB_HOST_ARCH), armel armhf))
@@ -353,7 +359,6 @@ COMMON_PATCHES = \
 	workaround_expand_exec_shield_cs_limit.diff \
 	zero-architectures.diff \
 	adlc-parser.patch \
-	compare-pointer-with-literal.patch \
 	multiple-pkcs11-library-init.patch \
 	applet-hole.patch \
 	libjpeg-fix.diff \
@@ -421,8 +426,7 @@ endif
 # set LIBARCH/aarch32 to arm
 ifneq (,$(filter $(DEB_HOST_ARCH), $(hotspot_aarch32_archs)))
   COMMON_PATCHES += \
-	aarch32.diff \
-	aarch32-update.diff
+	aarch32.diff
 endif
 
 ifneq (,$(filter $(DEB_HOST_ARCH), kfreebsd-amd64 kfreebsd-i386))
@@ -674,7 +678,7 @@ else ifneq (,$(filter $(distrel), saucy))
   bd_gcc = g++-4.8,
 else ifneq (,$(filter $(distrel),utopic vivid jessie))
   bd_gcc = g++-4.9,
-else ifneq (,$(filter $(distrel),wily xenial))
+else ifneq (,$(filter $(distrel),xenial wily))
   bd_gcc = g++-5,
 else ifneq (,$(filter $(distrel),stretch zesty))
   bd_gcc = g++-6,
@@ -683,8 +687,10 @@ else ifneq (,$(filter $(distrel),artful bionic))
 #else ifneq (,$(filter $(distrel),buster precise trusty))
 else ifneq (,$(filter $(distrel),buster precise))
   bd_gcc = g++-8,
-else
+else ifneq (,$(filter $(distrel),trusty xenial bionic focal hirsute))
   bd_gcc = g++-9,
+else
+  bd_gcc = g++-11,
 endif
 bd_syslibs = zlib1g-dev, libattr1-dev,
 ifneq (,$(filter $(distrel),squeeze lucid))
@@ -2001,17 +2007,17 @@ endif
 is_release		=
 is_release		= yes
 hg_project		= jdk8u
-hg_tag			= jdk8u292-b10
+hg_tag			= jdk8u312-b07
 package_version		= $(subst jdk,,$(hg_tag))
 ifneq ($(is_release),yes)
   package_version	:= $(subst -,~,$(package_version))
 endif
 hg_url			= http://hg.openjdk.java.net/jdk8u/$(hg_project)
 hg_project_aarch64	= jdk8u-shenandoah
-hg_tag_aarch64		= aarch64-shenandoah-jdk8u292-b10
+hg_tag_aarch64		= aarch64-shenandoah-jdk8u312-b07
 hg_url_aarch64		= http://hg.openjdk.java.net/aarch64-port/$(hg_project_aarch64)
 hg_project_aarch32	= jdk8u
-hg_tag_aarch32		= jdk8u292-b09-aarch32-20210330
+hg_tag_aarch32		= jdk8u312-b07-aarch32-20211101
 hg_url_aarch32		= http://hg.openjdk.java.net/aarch32-port/$(hg_project_aarch32)
 origdir			= ../openjdk-8-$(package_version).orig
 orig_tarball		= ../openjdk-8_$(package_version).orig.tar.xz
