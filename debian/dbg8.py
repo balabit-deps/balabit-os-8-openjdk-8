@@ -1,21 +1,21 @@
 # Copyright 2016, Red Hat and individual contributors
 # by the @authors tag.
-# 
+#
 # This is free software; you can redistribute it and/or modify it
 # under the terms of the GNU Lesser General Public License as
 # published by the Free Software Foundation; either version 2.1 of
 # the License, or (at your option) any later version.
-# 
+#
 # This software is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
 # Lesser General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU Lesser General Public
 # License along with this software; if not, write to the Free
 # Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 # 02110-1301 USA, or see the FSF site: http://www.fsf.org.
-# 
+#
 # @authors Andrew Dinn
 
 import gdb
@@ -56,7 +56,7 @@ class Types(object):
     int_t = gdb.lookup_type('int')
     long_t = gdb.lookup_type('long')
     void_t = gdb.lookup_type('void')
-    
+
     bytep_t = byte_t.pointer()
     charp_t = char_t.pointer()
     intp_t = int_t.pointer()
@@ -168,7 +168,7 @@ class CodeHeap:
         cls.heap_block_type = gdb.lookup_type("HeapBlock").pointer()
         cls.code_blob_type = gdb.lookup_type("CodeBlob").pointer()
         cls.class_inited = True
-    
+
     def __init__(self, heap):
         # t("CodeHeap.__init__")
         # make sure we have static inited successfuly
@@ -188,7 +188,7 @@ class CodeHeap:
 
     def inrange(self, x):
         # t("CodeHeap.inrange")
-        return self.lo <= x and self.hi > x 
+        return self.lo <= x and self.hi > x
     def findblob(self, pc):
         # t("CodeHeap.findblob")
         x = Types.as_long(pc)
@@ -334,7 +334,7 @@ class CodeCache:
                 # t("blob = heap.findblob(pc)")
                 blob = heap.findblob(pc)
             except Exception as arg:
-                # debug_write("@@ findblob excepted %s\n" % str(arg)) 
+                # debug_write("@@ findblob excepted %s\n" % str(arg))
                 # t("blob = None")
                 blob = None
             # t("if blob != None:")
@@ -548,7 +548,7 @@ class MethodBCIReader:
         if pc < self.code_begin or pc >= self.code_end:
             return None
         pc_off = pc - self.code_begin
-        # debug_write("\npc_off = 0x%x\n" % pc_off) 
+        # debug_write("\npc_off = 0x%x\n" % pc_off)
         pc_desc = self.find_pc_desc(pc_off)
         if pc_desc is None:
             return None
@@ -617,12 +617,12 @@ class Method(object):
         if self.name == None:
             self.make_name(self.methodptr)
         return self.name
-        
+
     def get_klass_path(self):
         if self.name == None:
             self.make_name(self.methodptr)
         return self.klass_path
-    
+
     def get_line(self, bci):
         if bci < 0:
             bci = 0
@@ -654,7 +654,7 @@ class Method(object):
         sig_str = CodeCache.makestr(sig_name_length, sig_name)
         self.sig_str = self.make_sig_str(sig_str)
         self.name = self.klass_str + "." + self.method_str + self.sig_str
-            
+
     def make_sig_str(self, sig):
         in_sym_name = False
         sig_str = ""
@@ -1058,7 +1058,7 @@ class OpenJDKUnwinder(Unwinder):
             # debug_write("!!! blocking %s !!!\n" % str(thread))
             self.invocations[thread] = thread
             result = self.call_sub(pending_frame)
-            # debug_write("!!! unblocking %s !!!\n" % str(thread)) 
+            # debug_write("!!! unblocking %s !!!\n" % str(thread))
             self.invocations[thread] = None
             return result
         except Exception as arg:

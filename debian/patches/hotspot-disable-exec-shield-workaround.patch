@@ -2,9 +2,10 @@
 # DP: This workaround interacts badly with kernel changes to enlarge the stack
 # DP: gap, causing applications using JNI to crash (Debian bug #865303).
 # DP: Debian has never applied the Exec Shield patches.
+
 --- a/hotspot/src/os_cpu/linux_x86/vm/os_linux_x86.cpp
 +++ b/hotspot/src/os_cpu/linux_x86/vm/os_linux_x86.cpp
-@@ -890,7 +890,7 @@ void os::verify_stack_alignment() {
+@@ -891,7 +891,7 @@ void os::verify_stack_alignment() {
   * updates (JDK-8023956).
   */
  void os::workaround_expand_exec_shield_cs_limit() {

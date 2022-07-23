@@ -1,0 +1,5 @@
+# this is correct
+@basename@-jdk binary: executable-in-usr-lib
+
+# /usr/lib/jvm/…/lib/…
+@basename@-jdk binary: repeated-path-segment

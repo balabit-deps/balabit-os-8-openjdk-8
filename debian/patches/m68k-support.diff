@@ -130,7 +130,7 @@
  #endif // SHARE_VM_OOPS_CONSTMETHODOOP_HPP
 --- a/hotspot/src/share/vm/oops/oop.hpp
 +++ b/hotspot/src/share/vm/oops/oop.hpp
-@@ -374,6 +374,6 @@ class oopDesc {
+@@ -376,6 +376,6 @@ class oopDesc {
    static int mark_offset_in_bytes()    { return offset_of(oopDesc, _mark); }
    static int klass_offset_in_bytes()   { return offset_of(oopDesc, _metadata._klass); }
    static int klass_gap_offset_in_bytes();
@@ -160,7 +160,7 @@
  	$(SORT) $< > $@
 --- a/jdk/src/solaris/bin/java_md_solinux.c
 +++ b/jdk/src/solaris/bin/java_md_solinux.c
-@@ -1023,12 +1023,24 @@ void SplashFreeLibrary() {
+@@ -1024,12 +1024,24 @@ void SplashFreeLibrary() {
      }
  }
  
@@ -185,7 +185,7 @@
  #ifndef __solaris__
      pthread_t tid;
      pthread_attr_t attr;
-@@ -1039,7 +1051,7 @@ ContinueInNewThread0(int (JNICALL *conti
+@@ -1040,7 +1052,7 @@ ContinueInNewThread0(int (JNICALL *conti
        pthread_attr_setstacksize(&attr, stack_size);
      }
  
@@ -194,7 +194,7 @@
        void * tmp;
        pthread_join(tid, &tmp);
        rslt = (int)tmp;
-@@ -1057,7 +1069,7 @@ ContinueInNewThread0(int (JNICALL *conti
+@@ -1058,7 +1070,7 @@ ContinueInNewThread0(int (JNICALL *conti
  #else /* __solaris__ */
      thread_t tid;
      long flags = 0;

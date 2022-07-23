@@ -1,6 +1,6 @@
 --- a/hotspot/agent/src/os/linux/Makefile
 +++ b/hotspot/agent/src/os/linux/Makefile
-@@ -80,7 +80,7 @@ LDFLAGS_NO_EXEC_STACK="-Wl,-z,noexecstac
+@@ -81,7 +81,7 @@ LDFLAGS_NO_EXEC_STACK="-Wl,-z,noexecstac
  LFLAGS_LIBSA += $(LDFLAGS_NO_EXEC_STACK)
  
  $(LIBSA): $(ARCH) $(OBJS) mapfile
@@ -11,7 +11,7 @@
  	$(GCC) -c -o test.o -g -D_GNU_SOURCE -D$(ARCH) $(INCLUDES) test.c
 --- a/hotspot/make/linux/makefiles/gcc.make
 +++ b/hotspot/make/linux/makefiles/gcc.make
-@@ -293,6 +293,7 @@ endif
+@@ -306,6 +306,7 @@ endif
  
  # Enable linker optimization
  LFLAGS += -Xlinker -O1

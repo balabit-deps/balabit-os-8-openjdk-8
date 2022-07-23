@@ -1,0 +1,15 @@
+# From MirOS: contrib/hosted/tg/deb/dot.quiltrc,v 1.5 2013/12/31 10:17:32 tg Exp $
+
+QUILT_PATCHES=../debian/patches
+
+# enable options to generate standardised patches
+QUILT_PATCH_OPTS="--reject-format=unified"
+QUILT_DIFF_OPTS=""
+test -n "$QUILTRC_NO_DIFF_P" || \
+    QUILT_DIFF_OPTS="$QUILT_DIFF_OPTS --show-c-function"
+QUILT_DIFF_ARGS="-p ab --no-timestamps --no-index --color=auto"
+QUILT_REFRESH_ARGS="-p ab --no-timestamps --no-index --sort"
+QUILT_PUSH_ARGS="--color=auto"
+QUILT_COLORS="diff_hdr=1;32:diff_add=1;34:diff_rem=1;31:diff_hunk=1;33:diff_ctx=35:diff_cctx=33"
+
+:

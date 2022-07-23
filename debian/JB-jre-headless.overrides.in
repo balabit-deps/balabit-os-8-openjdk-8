@@ -1,11 +1,22 @@
 # empty directory by intent
 @basename@-jre-headless binary: package-contains-empty-directory usr/share/binfmts/
 
-# Strip libjvm.so with --strip-debug instead of --strip-unneeded. LP: #574997.
-@basename@-jre-headless binary: unstripped-binary-or-object
-
 # Ignore the mouse cursors
 @basename@-jre-headless binary: image-file-in-usr-lib
 
 # Just an empty directory
-@basename@-jre-headless binary: debug-package-should-be-named-dbg
+@basename@-jre-headless binary: debug-suffix-not-dbg
+
+# This is correct
+@basename@-jre-headless binary: executable-in-usr-lib
+
+# /usr/lib/jvm/…/lib/…
+@basename@-jre-headless binary: repeated-path-segment
+
+# not documentation
+@basename@-jre-headless binary: package-contains-documentation-outside-usr-share-doc */Xusage.txt
+@basename@-jre-headless binary: package-contains-documentation-outside-usr-share-doc */jvm.hprof.txt
+
+# this is a plugin
+@basename@-jre-headless binary: library-not-linked-against-libc */libjawt.so
+@basename@-jre-headless binary: shared-library-lacks-prerequisites */libjsound.so

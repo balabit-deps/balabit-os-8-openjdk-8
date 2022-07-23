@@ -1,2 +1,11 @@
 # these are in the -jre-headless package, -jre depends on it
 @basename@-jre binary: desktop-command-not-in-package
+
+# this is correct
+@basename@-jre binary: executable-in-usr-lib
+
+# created by dh_makeshlibs, don’t worry
+@basename@-jre binary: package-has-unnecessary-activation-of-ldconfig-trigger
+
+# /usr/lib/jvm/…/lib/…
+@basename@-jre binary: repeated-path-segment

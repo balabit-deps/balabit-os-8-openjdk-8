@@ -1,0 +1,5 @@
+# multiple javadoc domains
+@basename@-doc binary: duplicate-files
+
+# not a problem here
+@basename@-doc binary: repeated-path-segment

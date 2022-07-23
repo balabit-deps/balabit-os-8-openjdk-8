@@ -8,6 +8,7 @@ Description: Disable doclint by default
  See: https://lists.fedoraproject.org/pipermail/java-devel/2014-February/005150.html
 Author: Andrew John Hughes <ahughes@redhat.com>
 Forwarded: not-needed
+
 --- a/langtools/src/share/classes/com/sun/tools/javadoc/DocEnv.java
 +++ b/langtools/src/share/classes/com/sun/tools/javadoc/DocEnv.java
 @@ -812,10 +812,9 @@ public class DocEnv {

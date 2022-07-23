@@ -15,7 +15,7 @@ if [ "$1" = "remove" ] || [ "$1" = "deconfigure" ]; then
 
     if which update-binfmts >/dev/null; then
 	# try to remove and ignore the error
-	if [ -e /var/lib/binfmts/@basename@ ]; then
+	if [ -e /var/lib/binfmts/jar ]; then
 	    update-binfmts --package @basename@ \
 		--remove jar /usr/bin/jexec || true
 	fi

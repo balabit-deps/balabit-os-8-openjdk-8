@@ -1,51 +1,192 @@
-openjdk-8 (8u312-b07-0ubuntu1~20.04) focal-security; urgency=medium
+openjdk-8 (8u342-b07-0ubuntu1~20.04) focal-security; urgency=medium
 
-  * Security update for Ubuntu 20.04.
+  * Backport upstream releases 8u342 and 8u332 to 20.04 LTS.
+  * Security fixes in 8u342:
+    - JDK-8272243: Improve DER parsing
+    - JDK-8272249: Better properties of loaded Properties
+    - JDK-8277608: Address IP Addressing
+    - JDK-8281859, CVE-2022-21540: Improve class compilation
+    - JDK-8281866, CVE-2022-21541: Enhance MethodHandle invocations
+    - JDK-8283190: Improve MIDI processing
+    - JDK-8284370: Improve zlib usage
+    - JDK-8285407, CVE-2022-34169: Improve Xalan supports
+  * Security fixes in 8u332:
+    - JDK-8269938: Enhance XML processing passes redux
+    - JDK-8270504, CVE-2022-21426: Better XPath expression handling
+    - JDK-8272255: Completely handle MIDI files
+    - JDK-8272261: Improve JFR recording file processing
+    - JDK-8272594: Better record of recordings
+    - JDK-8274221: More definite BER encodings
+    - JDK-8275151, CVE-2022-21443: Improved Object Identification
+    - JDK-8277227: Better identification of OIDs
+    - JDK-8277672, CVE-2022-21434: Better invocation handler handling
+    - JDK-8278008, CVE-2022-21476: Improve Santuario processing
+    - JDK-8278356: Improve file creation
+    - JDK-8278449: Improve keychain support
+    - JDK-8278805: Enhance BMP image loading
+    - JDK-8278972, CVE-2022-21496: Improve URL supports
+    - JDK-8281388: Change wrapping of EncryptedPrivateKeyInfo
 
- -- Matthias Klose <doko@ubuntu.com>  Wed, 03 Nov 2021 15:54:59 +0200
+ -- Matthias Klose <doko@ubuntu.com>  Sat, 23 Jul 2022 18:13:07 +0200
 
-openjdk-8 (8u312-b07-0ubuntu1) jammy; urgency=medium
+openjdk-8 (8u342-b07-1) unstable; urgency=medium
 
-  * Update to 8u312-b07 (GA).
-  * Security fixes
-    - JDK-8130183, CVE-2021-35588: InnerClasses: VM permits wrong Throw
-      ClassFormatError if InnerClasses attribute's inner_class_info_index is 0.
-    - JDK-8161016: Strange behavior of URLConnection with proxy.
-    - JDK-8163326, CVE-2021-35550: Update the default enabled cipher suites
-      preference.
-    - JDK-8254967, CVE-2021-35565: com.sun.net.HttpsServer spins on TLS
-      session close.
-    - JDK-8263314: Enhance XML Dsig modes.
-    - JDK-8265167, CVE-2021-35556: Richer Text Editors.
-    - JDK-8265574: Improve handling of sheets.
-    - JDK-8265580, CVE-2021-35559: Enhanced style for RTF kit.
-    - JDK-8265776: Improve Stream handling for SSL.
-    - JDK-8266097, CVE-2021-35561: Better hashing support.
-    - JDK-8266103: Better specified spec values.
-    - JDK-8266109: More Resilient Classloading.
-    - JDK-8266115: More Manifest Jar Loading.
-    - JDK-8266137, CVE-2021-35564: Improve Keystore integrity.
-    - JDK-8266689, CVE-2021-35567: More Constrained Delegation.
+  * New upstream release
+  * Security fixes:
+    - JDK-8272243: Improve DER parsing
+    - JDK-8272249: Better properties of loaded Properties
+    - JDK-8277608: Address IP Addressing
+    - JDK-8281859, CVE-2022-21540: Improve class compilation
+    - JDK-8281866, CVE-2022-21541: Enhance MethodHandle invocations
+    - JDK-8283190: Improve MIDI processing
+    - JDK-8284370: Improve zlib usage
+    - JDK-8285407, CVE-2022-34169: Improve Xalan supports
+  * Other changes see
+    https://mail.openjdk.org/pipermail/jdk8u-dev/2022-July/015254.html
+  * Add patch to undo user.dir change prohibition; this breaks legacy
+    software like Gradle
+  * Upload sponsored by ⮡ tarent
+
+ -- Thorsten Glaser <tg@mirbsd.de>  Sat, 23 Jul 2022 01:34:54 +0200
+
+openjdk-8 (8u342~b06-1) unstable; urgency=low
+
+  * Upload 8u342-b06 for pre-release testing (b05 for hotspot-aarch32
+    but the only difference is elsewhere)
+
+ -- Thorsten Glaser <tg@mirbsd.de>  Tue, 12 Jul 2022 23:13:34 +0200
+
+openjdk-8 (8u332-ga-1) unstable; urgency=medium
+
+  * Upload to unstable: final tested release
+  * Otherwise, see below for diff from 8u312/8u322
+  * Upload sponsored by ⮡ tarent
+
+ -- Thorsten Glaser <tg@mirbsd.de>  Sun, 24 Apr 2022 20:43:30 +0200
+
+openjdk-8 (8u332~b09-2) experimental; urgency=low
+
+  * Upload to experimental, with arm64 but see below
+  * Security fixes:
+    - JDK-8269938: Enhance XML processing passes redux
+    - JDK-8270504, CVE-2022-21426: Better XPath expression handling
+    - JDK-8272255: Completely handle MIDI files
+    - JDK-8272261: Improve JFR recording file processing
+    - JDK-8272594: Better record of recordings
+    - JDK-8274221: More definite BER encodings
+    - JDK-8275151, CVE-2022-21443: Improved Object Identification
+    - JDK-8277227: Better identification of OIDs
+    - JDK-8277672, CVE-2022-21434: Better invocation handler handling
+    - JDK-8278008, CVE-2022-21476: Improve Santuario processing
+    - JDK-8278356: Improve file creation
+    - JDK-8278449: Improve keychain support
+    - JDK-8278805: Enhance BMP image loading
+    - JDK-8278972, CVE-2022-21496: Improve URL supports
+    - JDK-8281388: Change wrapping of EncryptedPrivateKeyInfo
+  * Other changes: see
+    https://mail.openjdk.java.net/pipermail/jdk8u-dev/2022-April/014839.html
+  * Use stock jdk8u on arm64 instead of aarch64-shenandoah hotspot+GC
+  * Upload sponsored by ⮡ tarent
+
+ -- Thorsten Glaser <tg@mirbsd.de>  Sun, 24 Apr 2022 01:47:18 +0200
+
+openjdk-8 (8u332~b09-1) experimental; urgency=low
+
+  * Upload to experimental
+  * New upstream release but without arm64 as it’s not yet ported
+  * Upload sponsored by ⮡ tarent
+
+ -- Thorsten Glaser <tg@mirbsd.de>  Thu, 21 Apr 2022 23:01:54 +0000
+
+openjdk-8 (8u322-ga-1) unstable; urgency=low
+
+  * Synchronise versions of G++ used with current distro defaults
+  * Switch to github-based download workflow
+  * Refresh patches, d/copyright, packaging
+  * New upstream release
+  * Security fixes:
+    - JDK-8264934, CVE-2022-21248: Enhance cross VM serialization
+    - JDK-8268488: More valuable DerValues
+    - JDK-8268494: Better inlining of inlined interfaces
+    - JDK-8268512: More content for ContentInfo
+    - JDK-8268795: Enhance digests of Jar files
+    - JDK-8268801: Improve PKCS attribute handling
+    - JDK-8268813, CVE-2022-21283: Better String matching
+    - JDK-8269151: Better construction of EncryptedPrivateKeyInfo
+    - JDK-8269944: Better HTTP transport redux
+    - JDK-8270392, CVE-2022-21293: Improve String constructions
+    - JDK-8270416, CVE-2022-21294: Enhance construction of
+      Identity maps
+    - JDK-8270492, CVE-2022-21282: Better resolution of URIs
+    - JDK-8270498, CVE-2022-21296: Improve SAX Parser configuration
+      management
+    - JDK-8270646, CVE-2022-21299: Improved scanning of XML entities
+    - JDK-8271962: Better TrueType font loading
+    - JDK-8271968: Better canonical naming
+    - JDK-8271987: Manifest improved manifest entries
+    - JDK-8272014, CVE-2022-21305: Better array indexing
+    - JDK-8272026, CVE-2022-21340: Verify Jar Verification
+    - JDK-8272236, CVE-2022-21341: Improve serial forms for transport
+    - JDK-8272272: Enhance jcmd communication
+    - JDK-8272462: Enhance image handling
+    - JDK-8273290: Enhance sound handling
+    - JDK-8273748, CVE-2022-21349: Improve Solaris font rendering
+    - JDK-8273756, CVE-2022-21360: Enhance BMP image support
+    - JDK-8273838, CVE-2022-21365: Enhanced BMP processing
+  * Other changes: see
+    https://mail.openjdk.java.net/pipermail/jdk8u-dev/2022-January/014522.html
+  * Upload sponsored by ⮡ tarent
+    in preparation for a quick 8u332 once available
+
+ -- Thorsten Glaser <tg@mirbsd.de>  Thu, 21 Apr 2022 23:06:27 +0200
+
+openjdk-8 (8u312-b07-1) unstable; urgency=medium
+
+  * New upstream release (GA)
+  * Security fixes:
+    - JDK-8130183, CVE-2021-35588: InnerClasses: VM permits wrong
+      Throw ClassFormatError if InnerClasses attribute's
+      inner_class_info_index is 0
+    - JDK-8161016: Strange behavior of URLConnection with proxy
+    - JDK-8163326, CVE-2021-35550: Update the default enabled cipher
+      suites preference
+    - JDK-8254967, CVE-2021-35565: com.sun.net.HttpsServer spins on
+      TLS session close
+    - JDK-8263314: Enhance XML Dsig modes
+    - JDK-8265167, CVE-2021-35556: Richer Text Editors
+    - JDK-8265574: Improve handling of sheets
+    - JDK-8265580, CVE-2021-35559: Enhanced style for RTF kit
+    - JDK-8265776: Improve Stream handling for SSL
+    - JDK-8266097, CVE-2021-35561: Better hashing support
+    - JDK-8266103: Better specified spec values
+    - JDK-8266109: More Resilient Classloading
+    - JDK-8266115: More Manifest Jar Loading
+    - JDK-8266137, CVE-2021-35564: Improve Keystore integrity
+    - JDK-8266689, CVE-2021-35567: More Constrained Delegation
     - JDK-8267086: ArrayIndexOutOfBoundsException in
-      java.security.KeyFactory.generatePublic.
-    - JDK-8267712: Better LDAP reference processing.
-    - JDK-8267729, CVE-2021-35578: Improve TLS client handshaking.
-    - JDK-8267735, CVE-2021-35586: Better BMP support.
-    - JDK-8268193: Improve requests of certificates.
-    - JDK-8268199: Correct certificate requests.
-    - JDK-8268506: More Manifest Digests.
-    - JDK-8269618, CVE-2021-35603: Better session identification.
-    - JDK-8269624: Enhance method selection support.
-    - JDK-8270398: Enhance canonicalization.
-    - JDK-8270404: Better canonicalization.
-  * Use mktemp instead of tempfile in maintainer script.
+      java.security.KeyFactory.generatePublic
+    - JDK-8267712: Better LDAP reference processing
+    - JDK-8267729, CVE-2021-35578: Improve TLS client handshaking
+    - JDK-8267735, CVE-2021-35586: Better BMP support
+    - JDK-8268193: Improve requests of certificates
+    - JDK-8268199: Correct certificate requests
+    - JDK-8268506: More Manifest Digests
+    - JDK-8269618, CVE-2021-35603: Better session identification
+    - JDK-8269624: Enhance method selection support
+    - JDK-8270398: Enhance canonicalization
+    - JDK-8270404: Better canonicalization
+  * Other changes: see
+    https://mail.openjdk.java.net/pipermail/jdk8u-dev/2021-October/014373.html
+  * Policy 4.6.1, no relevant changes
+  * d/copyright: Apply changes since 8u302
+  * Upload sponsored by ⮡ tarent
 
- -- Matthias Klose <doko@ubuntu.com>  Wed, 03 Nov 2021 14:27:30 +0200
+ -- Thorsten Glaser <tg@mirbsd.de>  Fri, 05 Nov 2021 23:57:58 +0000
 
-openjdk-8 (8u302-b08-0ubuntu2) impish; urgency=medium
+openjdk-8 (8u302-b08-1) unstable; urgency=medium
 
-  * Update to 8u302-b08 (GA).
-  * Security fixes
+  * New upstream release (GA)
+  * Security fixes:
     - JDK-8256157: Improve bytecode assembly
     - JDK-8256491: Better HTTP transport
     - JDK-8258432, CVE-2021-2341: Improve file transfers
@@ -60,10 +201,66 @@ openjdk-8 (8u302-b08-0ubuntu2) impish; urgency=medium
     - JDK-8264066, CVE-2021-2388: Enhance compiler validation
     - JDK-8264079: Improve abstractions
     - JDK-8264460: Improve NTLM support
-  * Other changes:
-    See https://mail.openjdk.java.net/pipermail/jdk8u-dev/2021-July/014118.html
+  * Other changes: see
+    https://mail.openjdk.java.net/pipermail/jdk8u-dev/2021-July/014118.html
+  * Add or update d/copyright lines, based on diffing upstream changes
+  * Refresh all patches that are actually used and drop no longer needed
+    d/p/compare-pointer-with-literal.patch
+  * Fix spelling in d/rules
+  * Upload sponsored by ⮡ tarent
 
- -- Matthias Klose <doko@ubuntu.com>  Mon, 23 Aug 2021 16:45:43 +0200
+ -- Thorsten Glaser <tg@mirbsd.de>  Thu, 29 Jul 2021 20:45:23 +0200
+
+openjdk-8 (8u292-b10-3) unstable; urgency=medium
+
+  * Re-upload with actually regenerated debian/control, oops
+
+ -- Thorsten Glaser <tg@mirbsd.de>  Thu, 24 Jun 2021 00:05:48 +0200
+
+openjdk-8 (8u292-b10-2) unstable; urgency=low
+
+  * Fix regression in /etc/java-8-openjdk/accessibility.properties
+  * Drop Suggests nōnexistent icedtea-8-plugin
+  * Fix binfmts error with patch from bug (Closes: #822348)
+  * Create /usr/share/man/man1 if it doesn’t exist, for crippled
+    container images (Closes: #863199)
+  * Provide java-runtime{,-headless} (Closes: #906111)
+  * Mark openjdk-8-doc as M-A:foreign
+  * Update “It was downloaded from” in d/copyright (cf. #970517)
+
+ -- Thorsten Glaser <tg@mirbsd.de>  Tue, 15 Jun 2021 22:23:01 +0200
+
+openjdk-8 (8u292-b10-1) unstable; urgency=medium
+
+  * Source-only upload after the previous bootstrap binary one
+  * Change -Xmx1024m to -Xmx1000m in icedtea-sound compilation
+    to work with mipsel’s memory layout (and sh4)
+  * Don’t set old-style ALT_ environment variables, they are ignored
+  * Create the origtgz in a hopefully reproducible way
+  * Merge openjdk-8 (8u292-b10-0+deb9u1)
+    - Revert bogus reversion of changes from previous uploads
+    - Add missing changelog entry for 8u275
+    - Revert *buntu ESM-related changes
+    - Undo an inconsistency in fetch-orig
+  * Fix whitespace
+  * Upgrade aarch32 to 8u292 GA
+  * Build with reproducible LC_ALL=C setting
+  * Obtain origtgz from https or, when not possible (icedtea-sound),
+    check SHA256 against one I manually downloaded and checked, using
+    the (expired…) key from pyconfigure’s signing keyring, which,
+    unlike the keyserver network, contains the key used
+  * Abort fetching origtgz if it fails, don’t soldier on to fail later
+  * Document reasons some tests fail (more building on older releases)
+  * Update lintian overrides (for sid)
+
+ -- Thorsten Glaser <tg@mirbsd.de>  Mon, 26 Apr 2021 17:00:54 +0200
+
+openjdk-8 (8u292-b10-0+deb9u1) stretch-security; urgency=medium
+
+  * Merge with Ubuntu.
+  * Update to 8u292-b10 (GA).
+
+ -- Emilio Pozuelo Monfort <pochu@debian.org>  Wed, 21 Apr 2021 13:13:15 +0200
 
 openjdk-8 (8u292-b10-0ubuntu1) hirsute; urgency=medium
 
@@ -80,6 +277,46 @@ openjdk-8 (8u292-b10-0ubuntu1) hirsute; urgency=medium
 
  -- Matthias Klose <doko@ubuntu.com>  Wed, 21 Apr 2021 12:25:15 +0200
 
+openjdk-8 (8u282-b08-2) unstable; urgency=medium
+
+  * Reupload to sid, under new maintainership (Debian Java team);
+    cf. https://lists.debian.org/debian-java/2021/03/msg00021.html
+    (and surrounding thread); sponsored by ⮡ tarent
+  * Readd improvements from 8u275-b01-1, lost changelog entries
+  * Add NEWS to openjdk-8-jre-headless (because all other depend on
+    that) regarding OpenJDK 8 not being supported
+  * Use GCC 10 to build on bullseye, sid, groovy and hirsute (that
+    means GCC 9 on focal only) (Closes: #978519)
+  * Silence postinst warning about removed -XX:PermSize option
+  * Switch to mktemp(1)
+  * Drop unused patches (keep a couple which just need updating)
+  * Update README.source a little
+  * G/C long-dead code from postinst, too
+  * If the testsuite is disabled during generation of debian/control
+    omit test-only dependencies
+  * Upload with binaries built using the previous openjdk-8 binaries
+    because openjdk-8-jdk is required for bootstrapping; 7 works but
+    11 cannot be used :/ a source-only upload will follow
+  * Skip testsuite for first bootstrap, saving lots of time/CPU
+  * Address some issues lintian reported; update a number of overrides
+
+ -- Thorsten Glaser <tg@mirbsd.de>  Fri, 26 Mar 2021 00:48:09 +0100
+
+openjdk-8 (8u282-b08-1) bullseye; urgency=medium
+
+  * Team upload.
+  * Provide builds for bullseye/sid (for a personal repository),
+    buster (for the same), stretch (for LTS), jessie (for ELTS)
+    and wheezy (also for that personal repository)
+  * Move @bd_bootstrap@ high up in Build-Depends so the resolver tries
+    to fulfil it first
+  * Require an openjdk-8 to bootstrap (a previous build)
+  * Let openjdk-8-jre-headless fulfill default-jre-headless (>= 2:1.8)
+    in <!nocheck>; the latter is only used with distros whose default
+    JRE is older than 8, to avoid accidental use of 11
+
+ -- Thorsten Glaser <t.glaser@tarent.de>  Sun, 14 Feb 2021 00:42:46 +0100
+
 openjdk-8 (8u282-b08-0ubuntu1) hirsute; urgency=medium
 
   * Update to 8u282-b08 (GA).
@@ -95,6 +332,25 @@ openjdk-8 (8u282-b07-0ubuntu1) hirsute; urgency=medium
 
  -- Tiago Stürmer Daitx <tiago.daitx@ubuntu.com>  Thu, 07 Jan 2021 00:16:35 +0000
 
+openjdk-8 (8u275-b01-1~deb9u1) stretch-security; urgency=medium
+
+  * Team upload.
+  * Provide 8u275-b01 (GA) regression fixes
+
+ -- Thorsten Glaser <tg@mirbsd.de>  Wed, 02 Dec 2020 11:15:53 +0100
+
+openjdk-8 (8u275-b01-1) unstable; urgency=medium
+
+  * Team upload.
+  * Merge back into Debian
+    - Revert Maintainer change
+  * Drop unused patch (which is already merged upstream)
+  * Correct hg_tag, hg_tag_aarch64, hg_tag_aarch32 in debian/rules
+  * Really update the origtgz to 8u275 instead of hackedly patching
+  * Quell some lintian warnings
+
+ -- Thorsten Glaser <tg@mirbsd.de>  Wed, 02 Dec 2020 09:51:35 +0100
+
 openjdk-8 (8u275-b01-0ubuntu1) hirsute; urgency=medium
 
   * Update to 8u275-b01 (GA). Patch aarch32 and aarch64 to 8u275-b01.
@@ -105,6 +361,13 @@ openjdk-8 (8u275-b01-0ubuntu1) hirsute; urgency=medium
     - JDK-8250861: Crash in MinINode::Ideal(PhaseGVN*, bool)
 
  -- Tiago Stürmer Daitx <tiago.daitx@ubuntu.com>  Mon, 09 Nov 2020 02:08:45 +0000
+
+openjdk-8 (8u272-b10-1) unstable; urgency=medium
+
+  * Team upload.
+  * Upload latest security fixes (thanks!) to sid
+
+ -- Thorsten Glaser <tg@mirbsd.de>  Mon, 26 Oct 2020 21:29:16 +0100
 
 openjdk-8 (8u272-b10-0ubuntu1) hirsute; urgency=medium
 
@@ -135,12 +398,53 @@ openjdk-8 (8u272-b10-0ubuntu1) hirsute; urgency=medium
 
  -- Tiago Stürmer Daitx <tiago.daitx@ubuntu.com>  Thu, 22 Oct 2020 00:12:59 +0000
 
+openjdk-8 (8u272-b10-0+deb9u1) stretch-security; urgency=medium
+
+  * Update to 8u272-b10 (GA).
+  * Security fixes:
+    - JDK-8233624: Enhance JNI linkage
+    - JDK-8236196: Improve string pooling
+    - JDK-8236862, CVE-2020-14779: Enhance support of Proxy class
+    - JDK-8237990, CVE-2020-14781: Enhanced LDAP contexts
+    - JDK-8237995, CVE-2020-14782: Enhance certificate processing
+    - JDK-8240124: Better VM Interning
+    - JDK-8241114, CVE-2020-14792: Better range handling
+    - JDK-8242680, CVE-2020-14796: Improved URI Support
+    - JDK-8242685, CVE-2020-14797: Better Path Validation
+    - JDK-8242695, CVE-2020-14798: Enhanced buffer support
+    - JDK-8243302: Advanced class supports
+    - JDK-8244136, CVE-2020-14803: Improved Buffer supports
+    - JDK-8244479: Further constrain certificates
+    - JDK-8244955: Additional Fix for JDK-8240124
+    - JDK-8245407: Enhance zoning of times
+    - JDK-8245412: Better class definitions
+    - JDK-8245417: Improve certificate chain handling
+    - JDK-8248574: Improve jpeg processing
+    - JDK-8249927: Specify limits of jdk.serialProxyInterfaceLimit
+    - JDK-8253019: Enhanced JPEG decoding
+
+ -- Emilio Pozuelo Monfort <pochu@debian.org>  Wed, 21 Oct 2020 23:52:22 +0200
+
 openjdk-8 (8u272~b09-0ubuntu1) groovy; urgency=medium
 
   * Update to 8u272-b09 (early access build).
   * Update AArch64 hotspot to 8u252-b08 (no hotspot changes to b09).
 
  -- Tiago Stürmer Daitx <tiago.daitx@ubuntu.com>  Thu, 08 Oct 2020 14:57:35 +0000
+
+openjdk-8 (8u265-b01-1) unstable; urgency=medium
+
+  * Team upload.
+  * Upload to unstable (no comment…). Thanks!
+
+ -- Thorsten Glaser <tg@mirbsd.de>  Thu, 13 Aug 2020 21:26:36 +0200
+
+openjdk-8 (8u265-b01-0+deb9u1) stretch-security; urgency=medium
+
+  * Non-maintainer upload by the LTS Team.
+  * Merge changes from 8u265-b01-0ubuntu2.
+
+ -- Emilio Pozuelo Monfort <pochu@debian.org>  Wed, 12 Aug 2020 10:17:29 +0200
 
 openjdk-8 (8u265-b01-0ubuntu2) groovy; urgency=medium
 

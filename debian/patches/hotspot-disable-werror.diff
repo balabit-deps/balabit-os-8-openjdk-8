@@ -2,7 +2,7 @@
 
 --- a/hotspot/make/linux/makefiles/gcc.make
 +++ b/hotspot/make/linux/makefiles/gcc.make
-@@ -201,7 +201,7 @@ else
+@@ -202,7 +202,7 @@ else
  endif
  
  # Compiler warnings are treated as errors

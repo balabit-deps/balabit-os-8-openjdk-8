@@ -9,4 +9,3 @@ Description: Transitional package for obsolete JamVM for OpenJDK
  JamVM support was removed for recent versions of OpenJDK 8.
  .
  This is a transitional package which can be safely removed.
-

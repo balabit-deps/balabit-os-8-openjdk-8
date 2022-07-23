@@ -1,2 +1,23 @@
-openjdk-8 source: quilt-build-dep-but-no-series-file
+# this uses its own patch series generation
 openjdk-8 source: patch-file-present-but-not-mentioned-in-series
+
+# needed for portability to older distro releases
+openjdk-8 source: debian-rules-parses-dpkg-parsechangelog
+
+# not feasible here
+openjdk-8 source: debian-watch-file-is-missing
+
+# highly intricate, not touching this for now
+openjdk-8 source: no-dh-sequencer
+openjdk-8 source: silent-on-rules-requiring-root
+openjdk-8 source: no-dep5-copyright
+
+# jajajajaja…
+openjdk-8 source: cute-field
+openjdk-8 source: upstream-metadata-file-is-missing
+
+# yeah, fix the tools that may croak then…
+openjdk-8 source: hyphen-in-upstream-part-of-debian-changelog-version
+
+# not a dh_make leftover
+openjdk-8 source: file-contains-fixme-placeholder

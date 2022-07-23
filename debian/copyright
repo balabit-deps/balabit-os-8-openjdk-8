@@ -2,8 +2,8 @@ This package was debianized by Matthias Klose <doko@ubuntu.com> on
 Wed, 08 Aug 2007 15:55:39 +0200.
 
 It was downloaded from
-	http://download.java.net/openjdk/jdk7/
-	http://ftp.gnome.org/pub/GNOME/sources/java-access-bridge/
+	https://hg.openjdk.java.net/
+	http://icedtea.classpath.org/
 
 ------------------------------------------------------------------------------
 Upstream Authors:
@@ -37,15 +37,25 @@ Packaging:
     Matthias Klose
 
 ------------------------------------------------------------------------------
-Copyright: 
+Copyright:
 
 OpenJDK:
     Copyright © 1996-2007 Sun Microsystems, Inc.
-    Copyright © 1996-2014 Oracle and/or its affiliates.
+    Copyright © 1996-2022 Oracle and/or its affiliates.
     For third party copyrights see below (copies from the third party readme).
     Portions Copyright © 1993-2014 IBM Corp.
     Portions Copyright © 1997 Eastman Kodak Company.
-    Portions Copyright © 1999-2005 The Apache Software Foundation.
+    Portions Copyright © 1999-2005 The Apache Software Foundation
+      (or licenced to the ASF under CLAs).
+    Portions Copyright © 2013–2016 Azul Systems, Inc.
+    Portions Copyright © 2021 Azul, Inc.
+    Portions Copyright © 2013–2021 Red Hat, Inc.
+    Portions Copyright © 2016 Google Inc.
+    Portions Copyright © 2019 Amazon.com, Inc. or its affiliates.
+    Portions Copyright © 2019 JetBrains s.r.o.
+    Portions Copyright © 2019–2020 SAP SE.
+    Portions Copyright © 2021 Huawei Technologies Co., Ltd.
+    Portions Copyright © 2021 Arm Limited.
 
 IcedTea Sound:
     Portions Copyright © 2008-2014 Red Hat, Inc.
@@ -62,6 +72,11 @@ Java Access Bridge:
 
 Packaging:
     Copyright © 2007-2014 Canonical Ltd.
+    Copyright © 2021, 2022 mirabilos and ⮡ tarent solutions GmbH
+
+SipHash:
+    Copyright © Copyright (c) 2012-2014 Daniel J. Bernstein <djb@cr.yp.to>
+    Copyright © 2012-2021 Jean-Philippe Aumasson <jeanphilippe.aumasson@gmail.com>
 
 ------------------------------------------------------------------------------
 License:
@@ -93,9 +108,9 @@ IcedTea Sound:
   IcedTea is licensed under the GPL v2. See `/usr/share/common-licenses/GPL-2'.
   The exception is: "CLASSPATH" EXCEPTION TO THE GPL.
 
-  The sound files (pulseaudio/testsounds/*.wav) were taken from the KDE Project 
-  (www.kde.org). A copy of them can be obtained from 
-  http://websvn.kde.org/branches/KDE/4.0/kdeartwork/sounds/ . They are licensed 
+  The sound files (pulseaudio/testsounds/*.wav) were taken from the KDE Project
+  (www.kde.org). A copy of them can be obtained from
+  http://websvn.kde.org/branches/KDE/4.0/kdeartwork/sounds/ . They are licensed
   by the copyright holders as GPLv2.
 
 OpenJDK:
@@ -117,7 +132,7 @@ A Note About License Headers
 Some sources downloaded from openjdk.java.net do not display the GPL
 license header.  Instances are:
 
- - The files in openjdk/j2se/src/share/classes/javax/xml/stream/ seem to 
+ - The files in openjdk/j2se/src/share/classes/javax/xml/stream/ seem to
    comprise the BEA-StAX source code
 
    http://ftpna2.bea.com/pub/downloads/jsr173.jar
@@ -243,8 +258,8 @@ openjdk/THIRD_PARTY_README
 DO NOT TRANSLATE OR LOCALIZE.
 -----------------------------
 
-%% This notice is provided with respect to ASM Bytecode Manipulation 
-Framework v5.0, which may be included with JRE 8, and JDK 8, and 
+%% This notice is provided with respect to ASM Bytecode Manipulation
+Framework v5.0, which may be included with JRE 8, and JDK 8, and
 OpenJDK 8.
 
 --- begin of LICENSE ---
@@ -283,7 +298,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 --------------------------------------------------------------------------------
 
-%% This notice is provided with respect to BSDiff v4.3, which may be 
+%% This notice is provided with respect to BSDiff v4.3, which may be
 included with JRE 8, JDK 8, and OpenJDK 8.
 
 --- begin of LICENSE ---
@@ -396,7 +411,7 @@ IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 -------------------------------------------------------------------------------
 
-%% This notice is provided with respect to CUP Parser Generator for 
+%% This notice is provided with respect to CUP Parser Generator for
 Java 0.10k, which may be included with JRE 8, JDK 8, and OpenJDK 8.
 
 --- begin of LICENSE ---
@@ -488,7 +503,7 @@ site-policy@w3.org.
 
 -------------------------------------------------------------------------------
 
-%% This notice is provided with respect to Dynalink v0.5, which may be 
+%% This notice is provided with respect to Dynalink v0.5, which may be
 included with JRE 8, JDK 8, and OpenJDK 8.
 
 --- begin of LICENSE ---
@@ -520,7 +535,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THEPOSSIBILITY OF SUCH DAMAGE.
 
 -------------------------------------------------------------------------------
 
-%% This notice is provided with respect to Elliptic Curve Cryptography, which 
+%% This notice is provided with respect to Elliptic Curve Cryptography, which
 may be included with JRE 8, JDK 8, and OpenJDK 8.
 
 You are receiving a copy of the Elliptic Curve Cryptography library in source
@@ -546,7 +561,7 @@ systems) from the JRE bin directory reserved for native libraries.
  of this license document, but changing it is not allowed.
 
 [This is the first released version of the Lesser GPL.  It also counts
- as the successor of the GNU Library Public License, version 2, hence
+ as the successor of the GNU Library General Public License, version 2, hence
  the version number 2.1.]
 
                             Preamble
@@ -594,7 +609,7 @@ modified by someone else and passed on, the recipients should know
 that what they have is not the original version, so that the original
 author's reputation will not be affected by problems that might be
 introduced by others.
-
+
   Finally, software patents pose a constant threat to the existence of
 any free program.  We wish to make sure that a company cannot
 effectively restrict the users of a free program by obtaining a
@@ -650,7 +665,7 @@ modification follow.  Pay close attention to the difference between a
 "work based on the library" and a "work that uses the library".  The
 former contains code derived from the library, whereas the latter must
 be combined with the library in order to run.
-
+
                   GNU LESSER GENERAL PUBLIC LICENSE
    TERMS AND CONDITIONS FOR COPYING, DISTRIBUTION AND MODIFICATION
 
@@ -697,7 +712,7 @@ Library.
   You may charge a fee for the physical act of transferring a copy,
 and you may at your option offer warranty protection in exchange for a
 fee.
-
+
   2. You may modify your copy or copies of the Library or any portion
 of it, thus forming a work based on the Library, and copy and
 distribute such modifications or work under the terms of Section 1
@@ -755,7 +770,7 @@ instead of to this License.  (If a newer version than version 2 of the
 ordinary GNU General Public License has appeared, then you can specify
 that version instead if you wish.)  Do not make any other change in
 these notices.
-
+
   Once this change is made in a given copy, it is irreversible for
 that copy, so the ordinary GNU General Public License applies to all
 subsequent copies and derivative works made from that copy.
@@ -806,7 +821,7 @@ Library will still fall under Section 6.)
 distribute the object code for the work under the terms of Section 6.
 Any executables containing that work also fall under Section 6,
 whether or not they are linked directly with the Library itself.
-
+
   6. As an exception to the Sections above, you may also combine or
 link a "work that uses the Library" with the Library to produce a
 work containing portions of the Library, and distribute that work
@@ -868,7 +883,7 @@ restrictions of other proprietary libraries that do not normally
 accompany the operating system.  Such a contradiction means you cannot
 use both them and the Library together in an executable that you
 distribute.
-
+
   7. You may place library facilities that are a work based on the
 Library side-by-side in a single library together with other library
 facilities not covered by this License, and distribute such a combined
@@ -909,7 +924,7 @@ subject to these terms and conditions.  You may not impose any further
 restrictions on the recipients' exercise of the rights granted herein.
 You are not responsible for enforcing compliance by third parties with
 this License.
-
+
   11. If, as a consequence of a court judgment or allegation of patent
 infringement or for any other reason (not limited to patent issues),
 conditions are imposed on you (whether by court order, agreement or
@@ -961,7 +976,7 @@ conditions either of that version or of any later version published by
 the Free Software Foundation.  If the Library does not specify a
 license version number, you may choose any version ever published by
 the Free Software Foundation.
-
+
   14. If you wish to incorporate parts of the Library into other free
 programs whose distribution conditions are incompatible with these,
 write to the author to ask for permission.  For software which is
@@ -995,7 +1010,7 @@ SUCH HOLDER OR OTHER PARTY HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH
 DAMAGES.
 
                      END OF TERMS AND CONDITIONS
-
+
            How to Apply These Terms to Your New Libraries
 
   If you develop a new library, and you want it to be of the greatest
@@ -1045,7 +1060,7 @@ That's all there is to it!
 -------------------------------------------------------------------------------
 
 %% This notice is provided with respect to  ECMAScript Language
-Specification ECMA-262 Edition 5.1 which may be included with 
+Specification ECMA-262 Edition 5.1 which may be included with
 JRE 8, JDK 8, and OpenJDK 8.
 
 --- begin of LICENSE ---
@@ -1169,7 +1184,7 @@ SOFTWARE.
 
 -------------------------------------------------------------------------------
 
-%% This notice is provided with respect to FontConfig 2.5, which may be 
+%% This notice is provided with respect to FontConfig 2.5, which may be
 included with JRE 8, JDK 8, and OpenJDK 8 source distributions on
 Linux and Solaris.
 
@@ -1198,7 +1213,7 @@ CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 -------------------------------------------------------------------------------
 
-%% This notice is provided with respect to IAIK PKCS#11 Wrapper, 
+%% This notice is provided with respect to IAIK PKCS#11 Wrapper,
 which may be included with JRE 8, JDK 8, and OpenJDK 8.
 
 --- begin of LICENSE ---
@@ -1249,14 +1264,14 @@ POSSIBILITY OF SUCH DAMAGE.
 
 -------------------------------------------------------------------------------
 
-%% This notice is provided with respect to ICU4C 4.0.1 and ICU4J 4.4, which 
+%% This notice is provided with respect to ICU4C 4.0.1 and ICU4J 4.4, which
 may be included with JRE 8, JDK 8, and OpenJDK 8.
 
 --- begin of LICENSE ---
 
-Copyright (c) 1995-2010 International Business Machines Corporation and others 
+Copyright (c) 1995-2010 International Business Machines Corporation and others
 
-All rights reserved. 
+All rights reserved.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -1286,7 +1301,7 @@ their respective owners.
 
 -------------------------------------------------------------------------------
 
-%% This notice is provided with respect to IJG JPEG 6b, which may be 
+%% This notice is provided with respect to IJG JPEG 6b, which may be
 included with JRE 8, JDK 8, and OpenJDK 8.
 
 --- begin of LICENSE ---
@@ -1325,7 +1340,7 @@ assumed by the product vendor.
 
 --------------------------------------------------------------------------------
 
-%% This notice is provided with respect to Joni v1.1.9, which may be 
+%% This notice is provided with respect to Joni v1.1.9, which may be
 included with JRE 8, JDK 8, and OpenJDK 8.
 
 --- begin of LICENSE ---
@@ -1352,7 +1367,7 @@ SOFTWARE.
 
 -------------------------------------------------------------------------------
 
-%% This notice is provided with respect to JOpt-Simple v3.0,  which may be 
+%% This notice is provided with respect to JOpt-Simple v3.0,  which may be
 included with JRE 8, JDK 8, and OpenJDK 8.
 
 --- begin of LICENSE ---
@@ -1382,7 +1397,7 @@ included with JRE 8, JDK 8, and OpenJDK 8.
 
 --------------------------------------------------------------------------------
 
-%% This notice is provided with respect to Kerberos functionality, which 
+%% This notice is provided with respect to Kerberos functionality, which
 which may be included with JRE 8, JDK 8, and OpenJDK 8.
 
 --- begin of LICENSE ---
@@ -1394,7 +1409,7 @@ which may be included with JRE 8, JDK 8, and OpenJDK 8.
 
 -------------------------------------------------------------------------------
 
-%% This notice is provided with respect to Kerberos functionality from 
+%% This notice is provided with respect to Kerberos functionality from
 FundsXpress, INC., which may be included with JRE 8, JDK 8, and OpenJDK 8.
 
 --- begin of LICENSE ---
@@ -1428,7 +1443,7 @@ FundsXpress, INC., which may be included with JRE 8, JDK 8, and OpenJDK 8.
 
 -------------------------------------------------------------------------------
 
-%% This notice is provided with respect to Kronos OpenGL headers, which may be 
+%% This notice is provided with respect to Kronos OpenGL headers, which may be
 included with JDK 8 and OpenJDK 8 source distributions.
 
 --- begin of LICENSE ---
@@ -1461,7 +1476,7 @@ included with JDK 8 and OpenJDK 8 source distributions.
 
 -------------------------------------------------------------------------------
 
-%% This notice is provided with respect to libpng 1.5.4, which may be 
+%% This notice is provided with respect to libpng 1.5.4, which may be
 included with JRE 8, JDK 8, and OpenJDK 8.
 
 --- begin of LICENSE ---
@@ -1581,7 +1596,7 @@ July 7, 2011
 
 -------------------------------------------------------------------------------
 
-%% This notice is provided with respect to libungif 4.1.3, which may be 
+%% This notice is provided with respect to libungif 4.1.3, which may be
 included with JRE 8, JDK 8, and OpenJDK 8.
 
 --- begin of LICENSE ---
@@ -1610,7 +1625,7 @@ THE SOFTWARE.
 
 -------------------------------------------------------------------------------
 
-%% This notice is provided with respect to Little CMS 2.5, which may be 
+%% This notice is provided with respect to Little CMS 2.5, which may be
 included with JRE 8, JDK 8, and OpenJDK 8.
 
 --- begin of LICENSE ---
@@ -1729,7 +1744,7 @@ Mozilla Public License Version 2.0
     means any form of the work other than Source Code Form.
 
 1.7. "Larger Work"
-    means a work that combines Covered Software with other material, in 
+    means a work that combines Covered Software with other material, in
     a separate file or files, that is not Covered Software.
 
 1.8. "License"
@@ -2090,13 +2105,13 @@ are met:
    documentation and/or other materials provided with the distribution.
 3. All advertising materials mentioning features or use of this software
    must display the following acknowledgement:
-     This product includes software developed by: 
+     This product includes software developed by:
       David Corcoran <corcoran@linuxnet.com>
       http://www.linuxnet.com (MUSCLE)
 4. The name of the author may not be used to endorse or promote products
    derived from this software without specific prior written permission.
 
-Changes to this license can be made only by the copyright author with 
+Changes to this license can be made only by the copyright author with
 explicit written consent.
 
 THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
@@ -2114,7 +2129,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 -------------------------------------------------------------------------------
 
-%% This notice is provided with respect to PorterStemmer v4, which may be 
+%% This notice is provided with respect to PorterStemmer v4, which may be
 included with JRE 8, JDK 8, and OpenJDK 8.
 
 --- begin of LICENSE ---
@@ -2164,12 +2179,12 @@ SOFTWARE.
 
 -------------------------------------------------------------------------------
 
-%% This notice is provided with respect to RelaxNGCC v1.12, which may be 
+%% This notice is provided with respect to RelaxNGCC v1.12, which may be
 included with JRE 8, JDK 8, and OpenJDK 8.
 
 --- begin of LICENSE ---
 
-Copyright (c) 2000-2003 Daisuke Okajima and Kohsuke Kawaguchi.  
+Copyright (c) 2000-2003 Daisuke Okajima and Kohsuke Kawaguchi.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -2214,7 +2229,7 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 -------------------------------------------------------------------------------
 
-%% This notice is provided with respect to SAX 2.0.1, which may be included 
+%% This notice is provided with respect to SAX 2.0.1, which may be included
 with JRE 8, JDK 8, and OpenJDK 8.
 
 --- begin of LICENSE ---
@@ -2245,7 +2260,7 @@ with JRE 8, JDK 8, and OpenJDK 8.
  operate with any other programs), even if such holder or other party has been
  advised of the possibility of such damages.
 
- Copyright Disclaimers 
+ Copyright Disclaimers
 
  This page includes statements to that effect by David Megginson, who would
  have been able to claim copyright for the original work.  SAX 1.0
@@ -2262,7 +2277,7 @@ with JRE 8, JDK 8, and OpenJDK 8.
  David Megginson, sax@megginson.com
  1998-05-11
 
- SAX 2.0 
+ SAX 2.0
 
  I hereby abandon any property rights to SAX 2.0 (the Simple API for XML), and
  release all of the SAX 2.0 source code, compiled code, and documentation
@@ -2276,34 +2291,34 @@ with JRE 8, JDK 8, and OpenJDK 8.
 
 -------------------------------------------------------------------------------
 
-%% This notice is provided with respect to SoftFloat version 2b, which may be 
+%% This notice is provided with respect to SoftFloat version 2b, which may be
 included with JRE 8, JDK 8, and OpenJDK 8 on Linux/ARM.
 
 --- begin of LICENSE ---
 
 Use of any of this software is governed by the terms of the license below:
 
-SoftFloat was written by me, John R. Hauser. This work was made possible in 
-part by the International Computer Science Institute, located at Suite 600, 
-1947 Center Street, Berkeley, California 94704. Funding was partially 
-provided by the National Science Foundation under grant MIP-9311980. The 
-original version of this code was written as part of a project to build 
-a fixed-point vector processor in collaboration with the University of 
-California at Berkeley, overseen by Profs. Nelson Morgan and John Wawrzynek. 
+SoftFloat was written by me, John R. Hauser. This work was made possible in
+part by the International Computer Science Institute, located at Suite 600,
+1947 Center Street, Berkeley, California 94704. Funding was partially
+provided by the National Science Foundation under grant MIP-9311980. The
+original version of this code was written as part of a project to build
+a fixed-point vector processor in collaboration with the University of
+California at Berkeley, overseen by Profs. Nelson Morgan and John Wawrzynek.
 
-THIS SOFTWARE IS DISTRIBUTED AS IS, FOR FREE. Although reasonable effort 
-has been made to avoid it, THIS SOFTWARE MAY CONTAIN FAULTS THAT WILL AT 
-TIMES RESULT IN INCORRECT BEHAVIOR. USE OF THIS SOFTWARE IS RESTRICTED TO 
-PERSONS AND ORGANIZATIONS WHO CAN AND WILL TAKE FULL RESPONSIBILITY FOR ALL 
-LOSSES, COSTS, OR OTHER PROBLEMS THEY INCUR DUE TO THE SOFTWARE, AND WHO 
-FURTHERMORE EFFECTIVELY INDEMNIFY JOHN HAUSER AND THE INTERNATIONAL COMPUTER 
-SCIENCE INSTITUTE (possibly via similar legal warning) AGAINST ALL LOSSES, 
-COSTS, OR OTHER PROBLEMS INCURRED BY THEIR CUSTOMERS AND CLIENTS DUE TO THE 
-SOFTWARE. 
+THIS SOFTWARE IS DISTRIBUTED AS IS, FOR FREE. Although reasonable effort
+has been made to avoid it, THIS SOFTWARE MAY CONTAIN FAULTS THAT WILL AT
+TIMES RESULT IN INCORRECT BEHAVIOR. USE OF THIS SOFTWARE IS RESTRICTED TO
+PERSONS AND ORGANIZATIONS WHO CAN AND WILL TAKE FULL RESPONSIBILITY FOR ALL
+LOSSES, COSTS, OR OTHER PROBLEMS THEY INCUR DUE TO THE SOFTWARE, AND WHO
+FURTHERMORE EFFECTIVELY INDEMNIFY JOHN HAUSER AND THE INTERNATIONAL COMPUTER
+SCIENCE INSTITUTE (possibly via similar legal warning) AGAINST ALL LOSSES,
+COSTS, OR OTHER PROBLEMS INCURRED BY THEIR CUSTOMERS AND CLIENTS DUE TO THE
+SOFTWARE.
 
-Derivative works are acceptable, even for commercial purposes, provided 
-that the minimal documentation requirements stated in the source code are 
-satisfied. 
+Derivative works are acceptable, even for commercial purposes, provided
+that the minimal documentation requirements stated in the source code are
+satisfied.
 
 --- end of LICENSE ---
 
@@ -2342,7 +2357,7 @@ SOFTWARE.
 
 -------------------------------------------------------------------------------
 
-%% This notice is provided with respect to Thai Dictionary, which may be 
+%% This notice is provided with respect to Thai Dictionary, which may be
 included with JRE 8, JDK 8, and OpenJDK 8.
 
 --- begin of LICENSE ---
@@ -2563,7 +2578,7 @@ the property of their respective owners.
 
 -------------------------------------------------------------------------------
 
-%% This notice is provided with respect to UPX v3.01, which may be included 
+%% This notice is provided with respect to UPX v3.01, which may be included
 with JRE 8 on Windows.
 
 --- begin of LICENSE ---
@@ -2651,7 +2666,7 @@ SPECIAL EXCEPTION FOR COMPRESSED EXECUTABLES
       version; either with our precompiled version, or (at your option)
       with a self compiled version of the unmodified UPX sources as
       distributed by us.
-   2. This also implies that the UPX stub must be completely unmodfied, i.e.
+   2. This also implies that the UPX stub must be completely unmodified, i.e.
       the stub imbedded in your compressed program must be byte-identical
       to the stub that is produced by the official unmodified UPX version.
    3. The decompressor and any other code from the stub must exclusively get
@@ -2749,13 +2764,13 @@ to do so,subject to the following conditions:
     CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
     LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
     OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
-    DAMAGE.  
+    DAMAGE.
 
 --- end of LICENSE ---
 
 -------------------------------------------------------------------------------
 
-%% This notice is provided with respect to X Window System 6.8.2, which may be 
+%% This notice is provided with respect to X Window System 6.8.2, which may be
 included with JRE 8, JDK 8, and OpenJDK 8 on Linux and Solaris.
 
 --- begin of LICENSE ---
@@ -3560,14 +3575,19 @@ info@urwpp.de or design@bigelowandholmes.com
 
 -------------------------------------------------------------------------------
 
-%% This notice is provided with respect to zlib v1.2.5, which may be included 
+%% This notice is provided with respect to zlib v1.2.11, which may be included
 with JRE 8, JDK 8, and OpenJDK 8.
 
---- begin of LICENSE ---
+Acknowledgments:
 
-  version 1.2.5, July 18th, 2005
+  The deflate format used by zlib was defined by Phil Katz.  The deflate and
+  zlib specifications were written by L.  Peter Deutsch.  Thanks to all the
+  people who reported problems and suggested various improvements in zlib; they
+  are too numerous to cite here.
 
-  Copyright (C) 1995-2005 Jean-loup Gailly and Mark Adler
+Copyright notice:
+
+ (C) 1995-2017 Jean-loup Gailly and Mark Adler
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -3588,25 +3608,102 @@ with JRE 8, JDK 8, and OpenJDK 8.
   Jean-loup Gailly        Mark Adler
   jloup@gzip.org          madler@alumni.caltech.edu
 
+-------------------------------------------------------------------------------
+
+Copyright (c) OASIS Open 2016-2019. All Rights Reserved.
+
+%% This notice is provided with respect to OASIS PKCS #11 Cryptographic Token
+Interface v3.0,  which may be included with JRE 8, JDK 8, and OpenJDK 8.
+
+--- begin of LICENSE ---
+
+Copyright © OASIS Open 2020. All Rights Reserved.
+
+    All capitalized terms in the following text have the meanings
+assigned to them in the OASIS Intellectual Property Rights Policy (the
+"OASIS IPR Policy"). The full Policy may be found at the OASIS website:
+[http://www.oasis-open.org/policies-guidelines/ipr]
+
+    This document and translations of it may be copied and furnished to
+others, and derivative works that comment on or otherwise explain it or
+assist in its implementation may be prepared, copied, published, and
+distributed, in whole or in part, without restriction of any kind,
+provided that the above copyright notice and this section are included
+on all such copies and derivative works. However, this document itself
+may not be modified in any way, including by removing the copyright
+notice or references to OASIS, except as needed for the purpose of
+developing any document or deliverable produced by an OASIS Technical
+Committee (in which case the rules applicable to copyrights, as set
+forth in the OASIS IPR Policy, must be followed) or as required to
+translate it into languages other than English.
+
+    The limited permissions granted above are perpetual and will not be
+revoked by OASIS or its successors or assigns.
+
+    This document and the information contained herein is provided on an
+"AS IS" basis and OASIS DISCLAIMS ALL WARRANTIES, EXPRESS OR IMPLIED,
+INCLUDING BUT NOT LIMITED TO ANY WARRANTY THAT THE USE OF THE
+INFORMATION HEREIN WILL NOT INFRINGE ANY OWNERSHIP RIGHTS OR ANY IMPLIED
+WARRANTIES OF MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE. OASIS
+AND ITS MEMBERS WILL NOT BE LIABLE FOR ANY DIRECT, INDIRECT, SPECIAL OR
+CONSEQUENTIAL DAMAGES ARISING OUT OF ANY USE OF THIS DOCUMENT OR ANY
+PART THEREOF.
+
+    [OASIS requests that any OASIS Party or any other party that
+believes it has patent claims that would necessarily be infringed by
+implementations of this OASIS Standards Final Deliverable, to notify
+OASIS TC Administrator and provide an indication of its willingness to
+grant patent licenses to such patent claims in a manner consistent with
+the IPR Mode of the OASIS Technical Committee that produced this
+deliverable.]
+
+    [OASIS invites any party to contact the OASIS TC Administrator if it
+is aware of a claim of ownership of any patent claims that would
+necessarily be infringed by implementations of this OASIS Standards
+Final Deliverable by a patent holder that is not willing to provide a
+license to such patent claims in a manner consistent with the IPR Mode
+of the OASIS Technical Committee that produced this OASIS Standards
+Final Deliverable. OASIS may include such claims on its website, but
+disclaims any obligation to do so.]
+
+    [OASIS takes no position regarding the validity or scope of any
+intellectual property or other rights that might be claimed to pertain
+to the implementation or use of the technology described in this OASIS
+Standards Final Deliverable or the extent to which any license under
+such rights might or might not be available; neither does it represent
+that it has made any effort to identify any such rights. Information on
+OASIS' procedures with respect to rights in any document or deliverable
+produced by an OASIS Technical Committee can be found on the OASIS
+website. Copies of claims of rights made available for publication and
+any assurances of licenses to be made available, or the result of an
+attempt made to obtain a general license or permission for the use of
+such proprietary rights by implementers or users of this OASIS Standards
+Final Deliverable, can be obtained from the OASIS TC Administrator.
+OASIS makes no representation that any information or list of
+intellectual property rights will at any time be complete, or that any
+claims in such list are, in fact, Essential Claims.]
+
 --- end of LICENSE ---
 
 -------------------------------------------------------------------------------
 
-%% This notice is provided with respect to the following which may be 
+%% This notice is provided with respect to the following which may be
 included with JRE 8, JDK 8, and OpenJDK 8, except where noted:
 
   Apache Commons Math 2.2
   Apache Derby 10.10.1.2        [included with JDK 8]
-  Apache Jakarta BCEL 5.2 
-  Apache Jakarta Regexp 1.4 
+  Apache Jakarta BCEL 5.2
+  Apache Jakarta Regexp 1.4
   Apache Santuario XML Security for Java 1.5.4
-  Apache Xalan-Java 2.7.1 
-  Apache Xerces Java 2.10.0 
-  Apache XML Resolver 1.1 
+  Apache Xalan-Java 2.7.1
+  Apache Xerces Java 2.10.0
+  Apache XML Resolver 1.1
   Dynalink 0.5
 
 These components are licensed under the Apache License, Version 2.0.
 See /usr/share/common-licenses/Apache-2.0
+
+Large parts of JAXP are also Apache 2.0-licenced.
 
 -------------------------------------------------------------------------------
 
@@ -3627,7 +3724,7 @@ JAMVM:
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
   GNU General Public License for more details.
- 
+
   You should have received a copy of the GNU General Public License
   along with this program; if not, write to the Free Software
   Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -3635,12 +3732,12 @@ JAMVM:
 debian/dbg8.py:
 # Copyright 2016, Red Hat and individual contributors
 # by the @authors tag.
-# 
+#
 # This is free software; you can redistribute it and/or modify it
 # under the terms of the GNU Lesser General Public License as
 # published by the Free Software Foundation; either version 2.1 of
 # the License, or (at your option) any later version.
-# 
+#
 # This software is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU

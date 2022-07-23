@@ -4,7 +4,9 @@
 # Uncomment this to turn on verbose mode.
 #export DH_VERBOSE=1
 
-unexport LANG LC_ALL
+unexport LANG
+export LC_ALL=C
+unexport LANGUAGE
 
 dh_version := $(shell dpkg-query -f '$${Version}\n' -W debhelper | sed -n 's/^\(.\).*/\1/p')
 
@@ -47,11 +49,12 @@ endif
 multiarch_dir = /$(DEB_HOST_MULTIARCH)
 
 hotspot_aarch32_archs = armhf
-hotspot_aarch64_archs = arm64
+#hotspot_aarch64_archs = arm64
+hotspot_aarch64_archs =
 
 hotspot_archs	= amd64 i386 arm64 ppc64 ppc64el sparc64 \
 	$(hotspot_aarch32_archs) kfreebsd-amd64 kfreebsd-i386
-jtreg_archs	= $(hotspot_archs) alpha arm64 armel armhf \
+jtreg_archs	= $(hotspot_archs) alpha armel armhf \
 		  ia64 mips mipsel mips64 mips64el powerpc \
 		  powerpcspe ppc64 ppc64el s390x sh4 x32
 # FIXME: use bootcycle builds for zero archs?
@@ -93,8 +96,23 @@ else
 endif
 jvmver		= 1.8.0
 shortver	= 8
-updatever	:= $(shell echo $(PKGVERSION) | sed -n 's/^$(shortver)u\([0-9]\+\).*/\1/p')
-buildver	:= $(shell echo $(PKGVERSION) | sed -n 's/^$(shortver)[^-]*-\(b[0-9]\+\).*/\1/p')
+
+is_release		=
+is_release		= yes
+gh_project		= jdk8u
+gh_tag			= jdk8u342-b07
+version_dash_buildnr	= $(subst ${gh_project},,${gh_tag})
+#version_dash_buildnr	= 3x2-b0x
+gh_tag_aarch32		= jdk8u342-b07-aarch32-20220721
+#gh_tag_aarch64		= aarch64-shenandoah-jdk8u322-b06
+package_version		= $(subst jdk,,${gh_tag})
+ifneq ($(is_release),yes)
+  package_version	:= $(subst -,~,$(package_version))
+endif
+
+# make sure to set version_dash_buildnr above manually if gh_tag is -ga
+updatever		:= $(firstword $(subst -, ,${version_dash_buildnr}))
+buildver		:= $(lastword $(subst -, ,${version_dash_buildnr}))
 
 ifneq (,$(DEB_HOST_MULTIARCH))
   jdirname	= java-$(shortver)-$(origin)-$(DEB_HOST_ARCH)
@@ -166,7 +184,7 @@ ifneq (,$(filter $(DEB_HOST_ARCH),$(hotspot_aarch32_archs)))
   hotspot_version = aarch32
 endif
 
-any_archs = alpha amd64 armel armhf arm64 i386 ia64 mips mipsel mips64 mips64el powerpc powerpcspe ppc64 ppc64el m68k sh4 sparc sparc64 s390x x32 kfreebsd-i386 kfreebsd-amd64
+any_archs = alpha amd64 armel ${hotspot_aarch32_archs} arm64 i386 ia64 mips mipsel mips64 mips64el powerpc powerpcspe ppc64 ppc64el m68k sh4 sparc sparc64 s390x x32 kfreebsd-i386 kfreebsd-amd64
 
 ifneq (,$(filter $(distrel),xenial))
   transitional_jamvm_pkg = yes
@@ -227,8 +245,8 @@ export EXTRA_LDFLAGS_HS  := $(shell $(dpkg_buildflags_hs) --get LDFLAGS)
 
 # for JDK: jdk/make/common/Defs.gmk
 # Don't overwrite JDK opt level :
-# 1) with forced -03, it cause wrong Math.* computations, see #679292 and #678228
-# 2) JDK already use it's own OPTIMIZATION_LEVEL variable for each module
+# 1) with forced -O3, it causes wrong Math.* computations, see #679292 and #678228
+# 2) JDK already uses its own OPTIMIZATION_LEVEL variable for each module
 dpkg_buildflags_jdk = DEB_CFLAGS_MAINT_STRIP="-O2 -O3" DEB_CXXFLAGS_MAINT_STRIP="-O2 -O3"
 dpkg_buildflags_jdk += dpkg-buildflags
 export EXTRA_CPPFLAGS_JDK := $(shell $(dpkg_buildflags_jdk) --get CPPFLAGS)
@@ -254,16 +272,16 @@ ifneq (,$(filter $(distrel),squeeze lucid))
 else ifneq (,$(filter $(distrel),wheezy quantal raring))
   export CC = gcc-4.7
   export CXX = g++-4.7
-#else ifneq (,$(filter $(distrel),precise))
-#  export CC = gcc-4.6
-#  export CXX = g++-4.6
-else ifneq (,$(filter $(distrel),saucy))
+else ifneq (,$(filter $(distrel),precise))
+  export CC = gcc-4.6
+  export CXX = g++-4.6
+else ifneq (,$(filter $(distrel),saucy trusty))
   export CC = gcc-4.8
   export CXX = g++-4.8
 else ifneq (,$(filter $(distrel),utopic vivid jessie))
   export CC = gcc-4.9
   export CXX = g++-4.9
-else ifneq (,$(filter $(distrel),xenial wily))
+else ifneq (,$(filter $(distrel),wily xenial))
   export CC = $(DEB_HOST_GNU_TYPE)-gcc-5
   export CXX = $(DEB_HOST_GNU_TYPE)-g++-5
 else ifneq (,$(filter $(distrel),zesty stretch))
@@ -273,12 +291,15 @@ else ifneq (,$(filter $(distrel),artful bionic))
   export CC = $(DEB_HOST_GNU_TYPE)-gcc-7
   export CXX = $(DEB_HOST_GNU_TYPE)-g++-7
 #else ifneq (,$(filter $(distrel),buster precise trusty))
-else ifneq (,$(filter $(distrel),buster precise))
+else ifneq (,$(filter $(distrel),buster))
   export CC = $(DEB_HOST_GNU_TYPE)-gcc-8
   export CXX = $(DEB_HOST_GNU_TYPE)-g++-8
-else ifneq (,$(filter $(distrel),trusty xenial bionic focal hirsute))
+else ifneq (,$(filter $(distrel),focal))
   export CC = $(DEB_HOST_GNU_TYPE)-gcc-9
   export CXX = $(DEB_HOST_GNU_TYPE)-g++-9
+else ifneq (,$(filter $(distrel),bullseye hirsute))
+  export CC = $(DEB_HOST_GNU_TYPE)-gcc-10
+  export CXX = $(DEB_HOST_GNU_TYPE)-g++-10
 else
   export CC = $(DEB_HOST_GNU_TYPE)-gcc-11
   export CXX = $(DEB_HOST_GNU_TYPE)-g++-11
@@ -322,8 +343,6 @@ on_buildd := $(shell [ -f /CurrentlyBuilding -o "$$LOGNAME" = buildd ] && echo y
 ifeq (,$(filter $(distrel),squeeze wheezy precise trusty))
   ifeq (,$(filter $(DEB_HOST_ARCH),none))
     with_systemtap = yes
-    ALT_SDT_H := $(firstword $(wildcard /usr/include/*/sys/sdt.h /usr/include/sys/sdt.h))
-    export ALT_SDT_H
   endif
 endif
 
@@ -333,6 +352,7 @@ ifneq (,$(filter $(DEB_HOST_ARCH), sparc64))
 endif
 
 COMMON_PATCHES = \
+	pr88.diff \
 	autoconf-select.diff \
 	hotspot-warn-no-errformat.diff \
 	aarch64.diff \
@@ -373,18 +393,10 @@ COMMON_PATCHES = \
 	jdk-i18n-pt_BR.diff \
 	hotspot-ia64.diff \
 
-# FIXME:
-#	dont-strip-images.diff \
-#	8141491.diff \
-
 ifeq ($(derivative),Debian)
   COMMON_PATCHES += \
 	hotspot-disable-exec-shield-workaround.patch
 endif
-
-#	jdk-derived-font-size.diff \
-# FIXME: update patches
-	#accessible-toolkit.patch # update for 8
 
 ifeq ($(with_bridge),atk)
     COMMON_PATCHES += atk-wrapper-security.patch
@@ -396,21 +408,10 @@ COMMON_PATCHES += \
 	dnd-files.patch \
 	zero-x32.diff \
 
-# FIXME	fontconfig-wqy-microhei.patch \
-# FIXME	zero-sparc.diff \
-# FIXME	no-pch-build.diff \
-
 ifeq (,$(filter $(DEB_HOST_ARCH),$(hotspot_aarch64_archs) $(hotspot_aarch32_archs)))
   COMMON_PATCHES += \
 	zero-sh.diff
 endif
-
-# FIXME: needs an update
-#ifeq (,$(filter $(distrel),squeeze lucid))
-#  COMMON_PATCHES += \
-#	fontconfig-korean-nanum.diff \
-#	fontconfig-japanese.diff
-#endif
 
 ifeq ($(with_pulse),yes)
     COMMON_PATCHES += \
@@ -427,12 +428,6 @@ endif
 ifneq (,$(filter $(DEB_HOST_ARCH), $(hotspot_aarch32_archs)))
   COMMON_PATCHES += \
 	aarch32.diff
-endif
-
-ifneq (,$(filter $(DEB_HOST_ARCH), kfreebsd-amd64 kfreebsd-i386))
-  COMMON_PATCHES += \
-	kfreebsd-support-jdk.diff \
-	kfreebsd-support-hotspot.diff
 endif
 
 DEFAULT_PATCHES = \
@@ -486,8 +481,7 @@ EXTRA_BUILD_ENV += \
 	FULL_DEBUG_SYMBOLS=0 \
 	ZIP_DEBUGINFO_FILES=0 \
 	STRIP_POLICY=none \
-	POST_STRIP_CMD=true \
-	ALT_OBJCOPY=/does_not_exist
+	POST_STRIP_CMD=true
 
 ifeq ($(with_pulse),yes)
   CONFIGURE_ARGS += --enable-pulse-java
@@ -580,13 +574,14 @@ COMMON_CONFIGURE_ARGS += \
 	--with-lcms=system \
 	--with-libpcsclite=system \
 
-ifneq (,$(filter $(distrel),precise trusty))
-  COMMON_CONFIGURE_ARGS += \
-	--with-stdc++lib=static
-else
+#ifneq (,$(filter $(distrel),precise trusty))
+#  when building with a not-shipped gcc-8 only
+#  COMMON_CONFIGURE_ARGS += \
+#	--with-stdc++lib=static
+#else
   COMMON_CONFIGURE_ARGS += \
 	--with-stdc++lib=dynamic
-endif
+#endif
 
 ifneq (,$(NJOBS))
   COMMON_CONFIGURE_ARGS += --with-num-cores=$(NJOBS)
@@ -659,36 +654,50 @@ else
   bd_autotools = autoconf (>= 2.69), automake, autotools-dev,
 endif
 bd_bootstrap += \
-	openjdk-8-jdk | openjdk-7-jdk,
+	openjdk-8-jdk,
+#	openjdk-8-jdk | openjdk-7-jdk,
 ifeq (,$(filter $(distrel),squeeze wheezy jessie precise trusty))
 bd_cross += \
 	openjdk-8-jdk-headless <cross>, dpkg-dev (>= 1.17.14),
 endif
 
+ifeq ($(with_check),yes)
+bd_check = \
+	xvfb@nocheck@, xauth@nocheck@, xfonts-base@nocheck@, \
+	libgl1-mesa-dri [!x32]@nocheck@, xfwm4@nocheck@, \
+	x11-xkb-utils@nocheck@, dbus-x11@nocheck@, \
+	jtreg@nocheck@, testng@nocheck@, \
+	openjdk-8-jre-headless@nocheck@ | default-jre-headless (>= 2:1.8)@nocheck@,
+else
+bd_check =
+endif
+
 # This section should be in sync with "CC/CXX" definition
 ifneq (,$(filter $(distrel),squeeze lucid))
   bd_gcc = g++-4.4 (>= 4.4.1),
-#else ifneq (,$(filter $(distrel), precise))
-#  bd_gcc = g++-4.6,
-else ifneq (,$(filter $(distrel), wheezy))
+else ifneq (,$(filter $(distrel),precise))
+  bd_gcc = g++-4.6,
+else ifneq (,$(filter $(distrel),wheezy))
   bd_gcc = g++-4.7, g++-4.4 [mips mipsel],
-else ifneq (,$(filter $(distrel), quantal raring))
+else ifneq (,$(filter $(distrel),quantal raring))
   bd_gcc = g++-4.7,
-else ifneq (,$(filter $(distrel), saucy))
+else ifneq (,$(filter $(distrel),saucy trusty))
   bd_gcc = g++-4.8,
 else ifneq (,$(filter $(distrel),utopic vivid jessie))
   bd_gcc = g++-4.9,
-else ifneq (,$(filter $(distrel),xenial wily))
+else ifneq (,$(filter $(distrel),wily xenial))
   bd_gcc = g++-5,
 else ifneq (,$(filter $(distrel),stretch zesty))
   bd_gcc = g++-6,
 else ifneq (,$(filter $(distrel),artful bionic))
   bd_gcc = g++-7,
 #else ifneq (,$(filter $(distrel),buster precise trusty))
-else ifneq (,$(filter $(distrel),buster precise))
+else ifneq (,$(filter $(distrel),buster))
   bd_gcc = g++-8,
-else ifneq (,$(filter $(distrel),trusty xenial bionic focal hirsute))
+else ifneq (,$(filter $(distrel),focal))
   bd_gcc = g++-9,
+else ifneq (,$(filter $(distrel),bullseye hirsute))
+  bd_gcc = g++-10,
 else
   bd_gcc = g++-11,
 endif
@@ -770,7 +779,7 @@ dlopen_hl_depends = \
 	libcups2, liblcms2-2,
 ifneq (,$(filter $(distrel),squeeze lucid))
   dlopen_hl_depends += libjpeg62,
-else ifneq (,$(filter $(distrel), jessie stretch buster bullseye sid))
+else ifneq (,$(filter $(distrel), jessie stretch buster bullseye bookworm sid))
   dlopen_hl_depends += libjpeg62-turbo,
 else
   dlopen_hl_depends += libjpeg8,
@@ -860,7 +869,6 @@ control_vars = \
 	'-Vdlopenhl:Recommends=$(dlopen_hl_recommends)' \
 	'-Vdlopenjre:Depends=$(dlopen_jre_depends)' \
 	'-Vdlopenjre:Recommends=$(dlopen_jre_recommends)' \
-	'-Vpkg:pulseaudio=$(pkg_pulseaudio)' \
 	'-Vxulrunner:Depends=$(xulrunner_depends)' \
 
 ifeq ($(with_bridge),atk)
@@ -923,6 +931,7 @@ debian/control: debian/control.in debian/rules
 	      -e 's/@basename@/$(basename)/g' \
 	      -e 's/@bd_autotools@/$(bd_autotools)/g' \
 	      -e 's/@bd_bootstrap@/$(strip $(bd_bootstrap))/g' \
+	      -e 's/@bd_check@/$(strip $(bd_check))/g' \
 	      -e 's/@bd_cross@/$(strip $(bd_cross))/g' \
 	      -e 's/@bd_openjdk@/$(bd_openjdk)/g' \
 	      -e 's/@bd_zero@/$(bd_zero)/g' \
@@ -939,7 +948,7 @@ debian/control: debian/control.in debian/rules
 	      -e 's/@cjk_fonts@/$(cjk_fonts)/g' \
 	      -e 's/@any_archs@/$(any_archs)/g' \
 	      -e 's/@hotspot_archs@/$(hotspot_archs)/g' \
-	      -e 's/@altzero_archs@/$(altzero_archs)/g' \
+	      -e 's/@altzero_archs@/$(strip $(altzero_archs))/g' \
 	      -e 's/@nocheck@/$(nocheck_profile)/g' \
 	    debian/control.in \
 	    $(if $(transitional_jamvm_pkg), debian/control.jamvm-trans) \
@@ -1110,11 +1119,13 @@ endif
 	touch $@
 
 patch: stamps/patch
-stamps/patch: stamps/unpack
+stamps/series: stamps/unpack
 	for i in $(DEFAULT_PATCHES); do \
 	  echo $$i; \
 	done > $(srcdir)/series
+	@:>$@
 
+stamps/patch: stamps/series
 	cd $(srcdir) && \
 	  QUILT_PATCHES=../debian/patches quilt --quiltrc - push -a
 	( \
@@ -1172,8 +1183,6 @@ endif
 pre-build:
 ifneq (,$(filter $(DEB_HOST_ARCH),s390))
 	@echo explicitely fail the build for $(DEB_HOST_ARCH), patches not updated
-#else ifneq (,$(filter $(DEB_HOST_ARCH),armel))
-#	@echo explicitely fail the build for $(DEB_HOST_ARCH), ARM assembler interpreter not yet ported
 	false
 endif
 
@@ -1269,8 +1278,11 @@ ifneq (,$(filter $(VMNAME), $(with_jtreg_check)))
 	-for i in hotspot langtools jdk; do \
 	  find jtreg-test-output/$$i/JTwork/ -name '*.jtr'; \
 	done > jtreg-test-output/failed_tests-$(VMNAME).list
-	GZIP=-9vn tar --ignore-failed-read -C . -c -z -f jtreg-test-output/failed_tests-$(VMNAME).tar.gz -T jtreg-test-output/failed_tests-$(VMNAME).list
-	GZIP=-9vn tar -C . -c -z -f jtreg-test-output/jtreport-$(VMNAME).tar.gz $$(find jtreg-test-output -name JTreport)
+	tar --ignore-failed-read -C . -cf - \
+	    -T jtreg-test-output/failed_tests-$(VMNAME).list | \
+	    gzip -n9 >jtreg-test-output/failed_tests-$(VMNAME).tar.gz
+	tar -C . -cf - $$(find jtreg-test-output -name JTreport) | \
+	    gzip -n9 >jtreg-test-output/jtreport-$(VMNAME).tar.gz
 else
 	echo "jtreg harness not run for this build" > jtreg-test-output/jtreg_output-$(VMNAME)
 endif
@@ -1495,12 +1507,6 @@ endif
 
 	: # FIXME: fix, move and install tapset files
 	rm -rf $(d)/$(basedir)/tapset
-
-	: # TODO: why do we provide a custom font.properties.ja?
-	: # cp -p debian/font.properties.ja $(d_jbin)/$(etcdir)/.
-#	cp debian/font.properties.wgy_zenhai \
-#		$(d)/$(etcdir)/font.properties.ja
-
 
 	: # now move things to the packages. it is so ****** to create
 	: # .install files first. dh_movefiles did do the job perfectly
@@ -2004,56 +2010,100 @@ endif
 	NO_PKG_MANGLE=1 \
 	dh_builddeb -a $(nodemo) $(nojrez) #$(bd_options)
 
-is_release		=
-is_release		= yes
-hg_project		= jdk8u
-hg_tag			= jdk8u312-b07
-package_version		= $(subst jdk,,$(hg_tag))
-ifneq ($(is_release),yes)
-  package_version	:= $(subst -,~,$(package_version))
-endif
-hg_url			= http://hg.openjdk.java.net/jdk8u/$(hg_project)
-hg_project_aarch64	= jdk8u-shenandoah
-hg_tag_aarch64		= aarch64-shenandoah-jdk8u312-b07
-hg_url_aarch64		= http://hg.openjdk.java.net/aarch64-port/$(hg_project_aarch64)
-hg_project_aarch32	= jdk8u
-hg_tag_aarch32		= jdk8u312-b07-aarch32-20211101
-hg_url_aarch32		= http://hg.openjdk.java.net/aarch32-port/$(hg_project_aarch32)
+gh_url			= https://github.com/openjdk/${gh_project}/archive/refs/tags/${gh_tag}.tar.gz
+gh_project_aarch32	= aarch32-port-jdk8u
+gh_url_aarch32		= https://github.com/openjdk/${gh_project_aarch32}/archive/refs/tags/${gh_tag_aarch32}.tar.gz
+gh_project_aarch64	= shenandoah-jdk8u
+gh_url_aarch64		= https://github.com/openjdk/${gh_project_aarch64}/archive/refs/tags/${gh_tag_aarch64}.tar.gz
 origdir			= ../openjdk-8-$(package_version).orig
-orig_tarball		= ../openjdk-8_$(package_version).orig.tar.xz
+orig_tarball		= ../openjdk-8_$(package_version).orig.tar.gz
 source_date		:= $(shell dpkg-parsechangelog | sed -n '/^Date: /{s///p;q;}')
+do_fetch		= test -s ${origdir}/$(1) || \
+			    if wget -O ${origdir}/$(1)~ $(2); then \
+				mv ${origdir}/$(1)~ ${origdir}/$(1); \
+			    else \
+				echo >&2 E: fetching $(1) failed; \
+				exit 1; \
+			    fi
 fetch-orig:
 	mkdir -p $(origdir)
-	wget -c -O $(origdir)/root.tar.bz2 $(hg_url)/archive/$(hg_tag).tar.bz2
-	for repo in corba jaxp jaxws langtools hotspot jdk nashorn; do \
-	  echo wget -O $(origdir)/$$repo.tar.bz2 \
-	    $(hg_url)/$$repo/archive/$(hg_tag).tar.bz2; \
-	  wget -O $(origdir)/$$repo.tar.bz2 \
-	    $(hg_url)/$$repo/archive/$(hg_tag).tar.bz2; \
-	done
-	wget -O $(origdir)/hotspot-aarch64.tar.bz2 \
-	  $(hg_url_aarch64)/hotspot/archive/$(hg_tag_aarch64).tar.bz2
-
+	$(call do_fetch,jdk-any.tar.gz,${gh_url})
 ifneq (,$(hotspot_aarch32_archs))
-	wget -O $(origdir)/hotspot-aarch32.tar.bz2 \
-	  $(hg_url_aarch32)/hotspot/archive/$(hg_tag_aarch32).tar.bz2
+	$(call do_fetch,jdk-aarch32.tar.gz,${gh_url_aarch32})
+endif
+ifneq (,$(hotspot_aarch64_archs))
+	$(call do_fetch,jdk-aarch64.tar.gz,${gh_url_aarch64})
+endif
+	$(call do_fetch,icedtea-sound.tar.xz, \
+	    http://icedtea.classpath.org/download/source/icedtea-sound-1.0.1.tar.xz)
+	# checksum generated after PGP validation of manual download
+	cd $(origdir) && \
+	    echo '6ff852b82ae7db7a95981271037eb3a3d52c59581e3b27a638a7c6bc8eecb4a3 *icedtea-sound.tar.xz' | \
+	    sha256sum -c
+	:
+	ls -l $(origdir)
+
+hotspot_variants :=
+ifneq (,$(hotspot_aarch64_archs))
+hotspot_variants += aarch64
+endif
+ifneq (,$(hotspot_aarch32_archs))
+hotspot_variants += aarch32
 endif
 
-	wget -O $(origdir)/icedtea-sound.tar.xz \
-	  http://icedtea.classpath.org/download/source/icedtea-sound-1.0.1.tar.xz
+munge-orig:
+	set -e; cd ${origdir}; rm -rf xjdk-*; set -x; for x in jdk-*; do \
+		mkdir -p x"$$x"; \
+		tar -xzf "$$x" --strip-components=1 -C x"$$x"; \
+		find x"$$x" -type d -print0 | xargs -0 chmod 755; \
+	done
+	cd ${origdir}/xjdk-any.tar.gz && tar -czf ../hotspot.tar.gz hotspot
+	set -ex; cd ${origdir}; for extra in ${hotspot_variants}; do \
+		cd xjdk-$$extra.tar.gz; \
+		tar -czf ../hotspot-$$extra.tar.gz hotspot; \
+		cd ..; \
+	done
+	rm -r ${origdir}/xjdk-*/hotspot
+ifneq (,$(hotspot_aarch32_archs))
+	# known deltas unnecessary to diff every time
+	cd ${origdir}/xjdk-aarch32.tar.gz && rm -f \
+	    cross-pkg-config cross_configure.sh cross_make.sh
+endif
+	wd=$$(pwd) && cd ${origdir} && for extra in ${hotspot_variants}; do \
+		diff -pruN -x '.hgtags*' -x config.sub \
+		    -x generated-configure.sh \
+		    xjdk-any.tar.gz xjdk-$$extra.tar.gz \
+		    >"$$wd/variant-$$extra.diff"; \
+		test $$? -lt 2 || exit 1; \
+	done
+	set -ex; cd ${origdir}/xjdk-any.tar.gz; for dir in corba jaxp jaxws \
+	    jdk langtools nashorn; do \
+		tar -czf ../$$dir.tar.gz $$dir; \
+		rm -r $$dir; \
+	done
+	cd ${origdir} && tar -czf root.tar.gz xjdk-any.tar.gz && rm -r xjdk-*
+	rm ${origdir}/jdk-*
+	:
+	ls -l ${origdir}
+	: "make sure these diffs contain nothing relevant:"
+	ls -l variant-*.diff
+	: "also DO NOT commit *or* upload them!"
 
-#	wget -O $(origdir)/icedtea-sound.tar.bz2 \
-#	  http://icedtea.classpath.org/hg/icedtea-sound/archive/tip.tar.bz2
+gtar_reproducible=tar --clamp-mtime --mtime="$(source_date)" \
+	--sort=name --owner=0 --group=0 --numeric-owner --format=ustar
+
 dfsg-orig:
 	: # remove JSON license from THIRD_PARTY_README; no files shipped
 	set -ex; \
 	for repo in \
-	  root corba jaxp jaxws langtools hotspot jdk nashorn hotspot-aarch64 \
+	  root corba jaxp jaxws langtools hotspot jdk nashorn \
+	  $(if ${hotspot_aarch64_archs}, hotspot-aarch64) \
 	  $(if $(hotspot_aarch32_archs), hotspot-aarch32); \
 	do \
-	  [ -f $(origdir)/$$repo.tar.bz2 ] || continue; \
+	  [ -f $(origdir)/$$repo.tar.gz ] || continue; \
 	  mkdir -p $$repo; \
-	  tar -xf $(origdir)/$$repo.tar.bz2 --strip-components=1 -C $$repo; \
+	  tar -xzf $(origdir)/$$repo.tar.gz --strip-components=1 -C $$repo; \
+	  find $$repo -type d -print0 | xargs -0 chmod 755; \
 	  find $$repo -maxdepth 2 -name THIRD_PARTY_README; \
 	  for f in $$(find $$repo -maxdepth 2 -name THIRD_PARTY_README); do \
 	    awk '/^%% This notice is provided with respect to JSON/ { skip=1 } skip == 0 {print} /^----------/ { skip = 0} ' $$f > $$f.new; \
@@ -2071,12 +2121,24 @@ dfsg-orig:
 	    rm -v -f $$repo/src/share/native/sun/java2d/cmm/lcms/lcms2*.h; \
 	    rm -v -rf $$repo/src/solaris/native/sun/security/smartcardio/MUSCLE; \
 	  esac; \
-	  tar --clamp-mtime --mtime="$(source_date)" -cJf $(origdir)/$$repo.tar.xz $$repo; \
+	  find $$repo -perm /111 -print0 | xargs -0 chmod 755; \
+	  find $$repo '!' -perm /111 -print0 | xargs -0 chmod 644; \
+	  ${gtar_reproducible} -cJf $(origdir)/$$repo.tar.xz $$repo; \
 	  rm -rf $$repo; \
-	  rm -f $(origdir)/$$repo.tar.bz2; \
+	  rm -f $(origdir)/$$repo.tar.gz; \
 	done; \
-	tar --clamp-mtime --mtime="$(source_date)" -cJf $(orig_tarball) -C.. $$(basename $(origdir));
-get-orig: fetch-orig dfsg-orig
+	find $(origdir) -perm /111 -print0 | xargs -0 chmod 755; \
+	find $(origdir) '!' -perm /111 -print0 | xargs -0 chmod 644; \
+	${gtar_reproducible} -cf - -C .. $$(basename $(origdir)) | \
+	    gzip -n9 >$(orig_tarball)
+get-orig: fetch-orig munge-orig dfsg-orig
+
+debian/refresh:
+	mksh debian/refresher.sh : \
+	    $(if ${hotspot_aarch32_archs}, armhf : ) \
+	    $(if ${hotspot_aarch64_archs}, arm64 : ) \
+	    alpha . amd64 :
 
 binary: binary-arch binary-indep
 .PHONY: build build-arch build-indep clean binary-indep binary-arch binary install packaging-files
+.PHONY: get-orig fetch-orig munge-orig dfsg-orig debian/refresh

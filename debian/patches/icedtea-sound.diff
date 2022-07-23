@@ -1,5 +1,14 @@
 --- a/icedtea-sound/Makefile.am
 +++ b/icedtea-sound/Makefile.am
+@@ -62,7 +62,7 @@
+ JAVADOC_OPTS=-use -keywords -encoding UTF-8 -splitIndex \
+  -bottom '<font size="-1"> <a href="http://icedtea.classpath.org/bugzilla">Submit a bug or feature</a></font>'
+ if JAVADOC_SUPPORTS_J_OPTIONS
+-JAVADOC_MEM_OPTS=-J-Xmx1024m -J-Xms128m -J-XX:PermSize=32m -J-XX:MaxPermSize=160m
++JAVADOC_MEM_OPTS=-J-Xmx1000m -J-Xms128m -J-XX:PermSize=32m -J-XX:MaxPermSize=160m
+ endif
+ endif
+ 
 @@ -143,7 +143,7 @@
  	touch $@
  
@@ -11,6 +20,15 @@
  $(ICEDTEA_SOUND_NATIVE_BUILDDIR)/$(TARGET_NAME): $(ICEDTEA_SOUND_NATIVE_OBJECTS)
 --- a/icedtea-sound/Makefile.in
 +++ b/icedtea-sound/Makefile.in
+@@ -313,7 +313,7 @@
+ @ENABLE_DOCS_TRUE@JAVADOC_OPTS = -use -keywords -encoding UTF-8 -splitIndex \
+ @ENABLE_DOCS_TRUE@ -bottom '<font size="-1"> <a href="http://icedtea.classpath.org/bugzilla">Submit a bug or feature</a></font>'
+ 
+-@ENABLE_DOCS_TRUE@@JAVADOC_SUPPORTS_J_OPTIONS_TRUE@JAVADOC_MEM_OPTS = -J-Xmx1024m -J-Xms128m -J-XX:PermSize=32m -J-XX:MaxPermSize=160m
++@ENABLE_DOCS_TRUE@@JAVADOC_SUPPORTS_J_OPTIONS_TRUE@JAVADOC_MEM_OPTS = -J-Xmx1000m -J-Xms128m -J-XX:PermSize=32m -J-XX:MaxPermSize=160m
+ all: all-am
+ 
+ .SUFFIXES:
 @@ -721,7 +721,7 @@
  	touch $@
  
@@ -178,3 +196,14 @@
        ;;
      sh*)
        BUILD_ARCH_DIR=sh
+--- a/icedtea-sound/javac.in
++++ b/icedtea-sound/javac.in
+@@ -50,7 +50,7 @@
+     unless grep {$_ eq '-bootclasspath'} @ARGV;
+ my @ecj_parms = ($ECJ_WARNINGS, @bcoption);
+ my @javac_parms = ($JAVAC_WARNINGS, '-Xprefer:source',
+-		   '-XDignore.symbol.file=true', '-J-Xmx1024m');
++		   '-XDignore.symbol.file=true', '-J-Xmx1000m');
+ 
+ # Work around ecj's inability to handle duplicate command-line
+ # options and unknown javac options.

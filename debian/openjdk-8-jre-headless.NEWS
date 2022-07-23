@@ -1,0 +1,55 @@
+openjdk-8 (8u312-b07-1) unstable; urgency=medium
+
+  Upstream-provided “Notes on individual issues”:
+
+  core-libs/java.net:
+
+  JDK-8164200: Modified HttpURLConnection behavior w/o suitable proxy
+  ===================================================================
+  The behavior of HttpURLConnection when using a ProxySelector has been
+  modified with this JDK release. HttpURLConnection used to fall back to
+  a DIRECT connection attempt if the configured proxy(s) failed to make
+  a connection. This release introduces a change whereby no DIRECT
+  connection will be attempted in such a scenario. Instead, the
+  HttpURLConnection.connect() method will fail and throw an IOException
+  which occurred from the last proxy tested.
+
+  security-libs/javax.net.ssl:
+
+  JDK-8219551: Updated the Default Enabled Cipher Suites Preference
+  =================================================================
+  The preference of the default enabled cipher suites has been
+  changed. The compatibility impact should be minimal. If needed,
+  applications can customize the enabled cipher suites and the
+  preference. For more details, refer to the SunJSSE provider
+  documentation and the JSSE Reference Guide documentation.
+
+ -- Thorsten Glaser <tg@mirbsd.de>  Fri, 05 Nov 2021 23:57:46 +0000
+
+openjdk-8 (8u282-b08-2) unstable; urgency=medium
+
+  Note about support for OpenJDK 8:
+
+  - OpenJDK 8 was shipped with Debian 9 (“stretch”) and provided
+    via jessie-backports for Debian 8; updates are shipped for
+    both using the regular LTS and ELTS channels and policies,
+    respectively.
+
+  - Debian 10 (“buster”) and 11 (“bullseye”) ship with OpenJDK 11
+    supported. Therefore, OpenJDK 8 is not officially supported on
+    these releases.
+
+  - OpenJDK 8 is provided in Debian unstable (“sid”) but without
+    any support whatsoever. It is intended to be used mainly to
+    bootstrap certain JVM languages that don’t work with newer JDK.
+
+  - In Ubuntu, OpenJDK 8 is nominally supported, but only for as
+    long as 16.04 LTS (“xenial”) is still supported (regular support
+    ended with April 2021, but ESM may still be available).
+
+  - Please check with per-distribution, official, sources; this
+    information is merely provided as heads-up note here and not
+    guaranteed to be up-to-date. (This notice reflects the support
+    info available to the packager at the time of writing.)
+
+ -- Thorsten Glaser <tg@mirbsd.de>  Thu, 25 Mar 2021 20:49:51 +0100

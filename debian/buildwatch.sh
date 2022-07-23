@@ -2,7 +2,7 @@
 
 #
 # Output something to stdout every so often so buildd won't kill
-# the build when building 
+# the build when building
 #
 
 builddir=$1
@@ -21,7 +21,7 @@ time_up()     { [ $timer -ge $time_up_at ]; }
 can_update()  { [ $(expr $timer % $upd_every) -eq 0 ]; }
 do_sleep()    { sleep ${sleep_for}${time_unit} && inc_timer; }
 
-is_running() { 
+is_running() {
     ps x | grep -v grep | egrep -qs $@
     return $?
 }

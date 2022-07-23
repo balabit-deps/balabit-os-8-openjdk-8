@@ -51,7 +51,7 @@
  
 --- a/jdk/make/lib/Awt2dLibraries.gmk
 +++ b/jdk/make/lib/Awt2dLibraries.gmk
-@@ -659,8 +659,8 @@ endif
+@@ -666,8 +666,8 @@ ifeq ($(TOOLCHAIN_TYPE), clang)
  endif
  
  # TODO: Update awt lib path when awt is converted
@@ -62,7 +62,7 @@
      OUTPUT_DIR := $(INSTALL_LIBRARIES_HERE), \
      SRC := $(JDK_TOPDIR)/src/share/native/sun/java2d/cmm/lcms, \
      LANG := C, \
-@@ -679,19 +679,19 @@ $(eval $(call SetupNativeCompilation,BUI
+@@ -686,19 +686,19 @@ $(eval $(call SetupNativeCompilation,BUI
      LDFLAGS_windows := $(WIN_AWT_LIB) $(WIN_JAVA_LIB), \
      LDFLAGS_SUFFIX_solaris := -lawt -ljava -ljvm -lc, \
      LDFLAGS_SUFFIX_macosx := $(LIBM) -lawt -ljava -ljvm, \

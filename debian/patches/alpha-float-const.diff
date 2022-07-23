@@ -1,6 +1,6 @@
---- src/jdk/src/share/classes/java/lang/Float.java
-+++ src/jdk/src/share/classes/java/lang/Float.java
-@@ -85,7 +85,9 @@
+--- a/jdk/src/share/classes/java/lang/Float.java
++++ b/jdk/src/share/classes/java/lang/Float.java
+@@ -85,7 +85,9 @@ public final class Float extends Number
       *
       * @since 1.6
       */

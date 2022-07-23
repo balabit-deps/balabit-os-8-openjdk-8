@@ -28,7 +28,7 @@ fi
 if dpkg --compare-versions ${jtreg_version} ge 4.2; then
   jt_options+=" -conc:auto"
 fi
-  
+
 # check java binary
 if [ ! -x "${JDK_TO_TEST}/bin/java" ]; then
   echo "Error: '${JDK_TO_TEST}/bin/java' is not an executable." >&2

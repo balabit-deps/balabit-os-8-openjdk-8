@@ -1,3 +1,10 @@
+Description: “aarch32” patches outside of hotspot/
+ as applicable for Debian
+ .
+ Extra: “aarch32” has no support for C2 (server VM), use client
+Origin: Michael Klose?
+Forwarded: not-needed
+Last-Update: 2022-04-21
 
 --- a/common/autoconf/jdk-options.m4
 +++ b/common/autoconf/jdk-options.m4
@@ -73,6 +80,20 @@
    fi
    # Now setup the -D flags for building libjli.
    OPENJDK_TARGET_CPU_JLI_CFLAGS="-DLIBARCHNAME='\"$OPENJDK_TARGET_CPU_JLI\"'"
+--- a/hotspot/make/defs.make
++++ b/hotspot/make/defs.make
+@@ -335,6 +335,11 @@ ifneq ($(OSNAME),windows)
+   LIBARCH/ppc64   = ppc64
+   LIBARCH/aarch32 = aarch32
+ 
++  # Override LIBARCH for aarch32
++  ifeq ($(ARCH), aarch32)
++    LIBARCH = arm
++  endif
++
+   LP64_ARCH += sparcv9 amd64 ia64 ppc64 aarch64 zero
+ endif
+ 
 --- a/jdk/make/CopyFiles.gmk
 +++ b/jdk/make/CopyFiles.gmk
 @@ -328,9 +328,15 @@ else
@@ -164,17 +185,3 @@
 +#
 +-server KNOWN
 +-client IGNORE
---- a/hotspot/make/defs.make
-+++ b/hotspot/make/defs.make
-@@ -335,6 +335,11 @@ ifneq ($(OSNAME),windows)
-   LIBARCH/ppc64   = ppc64
-   LIBARCH/aarch32 = aarch32
- 
-+  # Override LIBARCH for aarch32
-+  ifeq ($(ARCH), aarch32)
-+    LIBARCH = arm
-+  endif
-+
-   LP64_ARCH += sparcv9 amd64 ia64 ppc64 aarch64 zero
- endif
- 

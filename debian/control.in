@@ -1,25 +1,20 @@
 Source: @basename@
 Section: java
 Priority: optional
-Maintainer: Ubuntu Developers <ubuntu-devel-discuss@lists.ubuntu.com>
-XSBC-Original-Maintainer: OpenJDK Team <openjdk@lists.launchpad.net>
-Uploaders: Matthias Klose <doko@ubuntu.com>
+Maintainer: Java Maintenance <debian-java@lists.debian.org>
+Uploaders: Thorsten Glaser <tg@mirbsd.de>
 Build-Depends: debhelper (>= 9), quilt, m4, lsb-release, zip, unzip,
-  sharutils, gawk, cpio, pkg-config, procps, wdiff, tzdata,
-  xvfb@nocheck@, xauth@nocheck@, xfonts-base@nocheck@, libgl1-mesa-dri [!x32]@nocheck@, xfwm4@nocheck@, x11-xkb-utils@nocheck@, dbus-x11@nocheck@,
-  jtreg@nocheck@, testng@nocheck@, time,
-  @bd_fastjar@
-  @bd_autotools@ @bd_ant@
-  @bd_gcc@
   @bd_bootstrap@
-  @bd_openjdk@
-  @bd_zero@ @bd_shark@
+  sharutils, gawk, cpio, pkg-config, procps, wdiff, tzdata,
+  @bd_check@ time,
+  @bd_autotools@ @bd_ant@ @bd_fastjar@
+  @bd_gcc@ @bd_openjdk@ @bd_shark@ @bd_zero@
   @bd_syslibs@ @bd_pulsejava@ @bd_systemtap@
   @bd_nss@ @bd_cross@
-Standards-Version: 4.5.0
+Standards-Version: 4.6.0
 Homepage: http://openjdk.java.net/
-Vcs-Bzr: http://bazaar.launchpad.net/~openjdk/openjdk/openjdk8
-Vcs-Browser: https://code.launchpad.net/~openjdk/openjdk/openjdk8
+VCS-git: https://evolvis.org/anonscm/git/alioth/openjdk-8.git -b master
+VCS-Browser: https://evolvis.org/plugins/scmgit/cgi-bin/gitweb.cgi?p=alioth/openjdk-8.git;a=shortlog;h=refs/heads/master
 
 Package: @basename@-jdk-headless
 Architecture: @any_archs@
@@ -37,6 +32,10 @@ Description: OpenJDK Development Kit (JDK) (headless)
  OpenJDK is a development environment for building applications,
  applets, and components using the Java programming language.
  .
+ This binary package contains almost the full JDK, except for some
+ tools (appletviewer, jconsole) and headers (jawt) that make sense
+ only in GUI environments.
+ .
  The packages are built using the IcedTea build support and patches
  from the IcedTea project.
 
@@ -52,7 +51,7 @@ Recommends: ${dlopenhl:Recommends}
 Suggests: libnss-mdns,
   @core_fonts@,
   @cjk_fonts@
-Provides: java2-runtime-headless,
+Provides: java-runtime-headless, java2-runtime-headless,
   java5-runtime-headless, java6-runtime-headless,
   java7-runtime-headless, java8-runtime-headless,
   ${defaultvm:Provides}, ${jvm:Provides}
@@ -80,6 +79,9 @@ Description: OpenJDK Development Kit (JDK)
  OpenJDK is a development environment for building applications,
  applets, and components using the Java programming language.
  .
+ This binary package extends the headless JDK with GUI-specific
+ utilities, libraries and, as necessary, package dependencies.
+ .
  The packages are built using the IcedTea build support and patches
  from the IcedTea project.
 
@@ -92,9 +94,8 @@ Depends: @basename@-jre-headless (= ${binary:Version}),
   ${dlopenjre:Depends}, ${dep:bridge},
   ${shlibs:Depends}, ${misc:Depends}
 Recommends: ${dlopenjre:Recommends}, @core_fonts@
-Suggests: icedtea-8-plugin, ${pkg:pulseaudio}
 Replaces: @basename@-jre-headless (<< 8u20~b20-3)
-Provides: java2-runtime,
+Provides: java-runtime, java2-runtime,
   java5-runtime, java6-runtime,
   java7-runtime, java8-runtime
 Description: OpenJDK Java runtime, using ${vm:Name}
@@ -106,7 +107,6 @@ Description: OpenJDK Java runtime, using ${vm:Name}
 
 Package: @basename@-demo
 Architecture: @any_archs@
-Priority: optional
 Pre-Depends: ${dpkg:Depends}
 Depends: @basename@-jre (= ${binary:Version}),
   ${shlibs:Depends}, ${misc:Depends}
@@ -118,7 +118,6 @@ Description: Java runtime based on OpenJDK (demos and examples)
 
 Package: @basename@-source
 Architecture: all
-Priority: optional
 Pre-Depends: ${dpkg:Depends}
 Depends: @basename@-jre (>= ${source:Version}),
   @basename@-jdk (>= ${binary:Version}),
@@ -138,7 +137,7 @@ Package: @basename@-doc
 Section: doc
 Pre-Depends: ${dpkg:Depends}
 Architecture: all
-Priority: optional
+Multi-Arch: foreign
 Depends: ${misc:Depends}
 Suggests: @basename@-jdk
 Description: OpenJDK Development Kit (JDK) documentation
@@ -153,7 +152,6 @@ Description: OpenJDK Development Kit (JDK) documentation
 Package: @basename@-dbg
 Architecture: @any_archs@
 Multi-Arch: same
-Priority: optional
 Section: debug
 Pre-Depends: ${dpkg:Depends}
 Depends: @basename@-jre-headless (= ${binary:Version}),

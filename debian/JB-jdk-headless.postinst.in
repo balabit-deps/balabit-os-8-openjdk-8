@@ -43,6 +43,7 @@ configure)
     if [ -n "$multiarch" ] && [ "$DPKG_MAINTSCRIPT_ARCH" != $(dpkg --print-architecture) ]; then
 	priority=$(expr $priority - 1)
     fi
+    test -d /usr/share/man/man1 || mkdir -p /usr/share/man/man1
     for i in $jdk_hl_tools; do
 	unset slave1 slave2 || true
         if [ -e $mandir/man1/$i.$srcext ]; then
