@@ -1,3 +1,119 @@
+openjdk-8 (8u352-ga-1) unstable; urgency=medium
+
+  Warning: JVM_Exit and the ability to run finalisers on exit are gone
+  as part of aligning OpenJDK with an updated reference implementation.
+  These apparently were not well supported before and the removed symbol
+  was considered private, anyway.
+
+  Upstream-provided “Notes on individual issues”:
+
+  core-libs/java.lang:
+
+  JDK-8201793: (ref) Reference object should not support cloning
+  ==============================================================
+  `java.lang.ref.Reference::clone` method always throws
+  `CloneNotSupportedException`. `Reference` objects cannot be
+  meaningfully cloned. To create a new Reference object, call the
+  constructor to create a `Reference` object with the same referent and
+  reference queue instead.
+
+  JDK-8175797: (ref) Reference::enqueue method should clear the
+  reference object before enqueuing
+  ======================================================================
+  `java.lang.ref.Reference.enqueue` method clears the reference object
+  before it is added to the registered queue. When the `enqueue` method
+  is called, the reference object is cleared and `get()` method will
+  return null in OpenJDK 8u352.
+
+  Typically when a reference object is enqueued, it is expected that the
+  reference object is cleared explicitly via the `clear` method to avoid
+  memory leak because its referent is no longer referenced. In other
+  words the `get` method is expected not to be called in common cases
+  once the `enqueue`method is called. In the case when the `get` method
+  from an enqueued reference object and existing code attempts to access
+  members of the referent, `NullPointerException` may be thrown. Such
+  code will need to be updated.
+
+  JDK-8071507: (ref) Clear phantom reference as soft&weak references do
+  =====================================================================
+  This enhancement changes phantom references to be automatically
+  cleared by the garbage collector as soft and weak references.
+
+  An object becomes phantom reachable after it has been finalized. This
+  change may cause the phantom reachable objects to be GC'ed earlier -
+  previously the referent is kept alive until PhantomReference objects
+  are GC'ed or cleared by the application. This potential behavioral
+  change might only impact existing code that would depend on
+  PhantomReference being enqueued rather than when the referent be freed
+  from the heap.
+
+  core-libs/java.net:
+
+  JDK-8286918: Better HttpServer service
+  ======================================
+  The HttpServer can be optionally configured with a maximum connection
+  limit by setting the jdk.httpserver.maxConnections system property. A
+  value of 0 or a negative integer is ignored and considered to
+  represent no connection limit. In the case of a positive integer
+  value, any newly accepted connections will be first checked against
+  the current count of established connections and, if the configured
+  limit has been reached, then the newly accepted connection will be
+  closed immediately.
+
+  security-libs/javax.net.ssl:
+
+  JDK-8282859: Enable TLSv1.3 by Default on JDK 8 for Client Roles
+  ================================================================
+  The TLSv1.3 implementation is now enabled by default for client roles
+  in 8u352. It has been enabled by default for server roles since 8u272.
+
+  Note that TLS 1.3 is not directly compatible with previous
+  versions. Enabling it on the client may introduce compatibility issues
+  on either the server or the client side. Here are some more details on
+  potential compatibility issues that you should be aware of:
+
+  * TLS 1.3 uses a half-close policy, while TLS 1.2 and prior versions
+    use a duplex-close policy. For applications that depend on the
+    duplex-close policy, there may be compatibility issues when
+    upgrading to TLS 1.3.
+
+  * The signature_algorithms_cert extension requires that pre-defined
+    signature algorithms are used for certificate authentication. In
+    practice, however, an application may use non-supported signature
+    algorithms.
+
+  * The DSA signature algorithm is not supported in TLS 1.3. If a server
+    is configured to only use DSA certificates, it cannot upgrade to TLS
+    1.3.
+
+  * The supported cipher suites for TLS 1.3 are not the same as TLS 1.2
+    and prior versions. If an application hard-codes cipher suites which
+    are no longer supported, it may not be able to use TLS 1.3 without
+    modifying the application code.
+
+  * The TLS 1.3 session resumption and key update behaviors are
+    different from TLS 1.2 and prior versions. The compatibility should
+    be minimal, but it could be a risk if an application depends on the
+    handshake details of the TLS protocols.
+
+  The TLS 1.3 protocol can be disabled by using the
+  jdk.tls.client.protocols system property:
+
+  java -Djdk.tls.client.protocols="TLSv1.2" ...
+
+  Alternatively, an application can explicitly set the enabled protocols
+  with the javax.net.ssl APIs e.g.
+
+  sslSocket.setEnabledProtocols(new String[] {"TLSv1.2"});
+
+  or:
+
+  SSLParameters params = sslSocket.getSSLParameters();
+  params.setProtocols(new String[] {"TLSv1.2"});
+  sslSocket.setSSLParameters(params);
+
+ -- Thorsten Glaser <tg@mirbsd.de>  Thu, 20 Oct 2022 18:11:00 +0200
+
 openjdk-8 (8u312-b07-1) unstable; urgency=medium
 
   Upstream-provided “Notes on individual issues”:

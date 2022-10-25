@@ -4,7 +4,7 @@ Description: “aarch32” patches outside of hotspot/
  Extra: “aarch32” has no support for C2 (server VM), use client
 Origin: Michael Klose?
 Forwarded: not-needed
-Last-Update: 2022-04-21
+Last-Update: 2022-10-20
 
 --- a/common/autoconf/jdk-options.m4
 +++ b/common/autoconf/jdk-options.m4

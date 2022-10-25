@@ -1,6 +1,6 @@
 --- a/hotspot/src/share/vm/runtime/os.cpp
 +++ b/hotspot/src/share/vm/runtime/os.cpp
-@@ -1076,7 +1076,7 @@ void os::print_location(outputStream* st
+@@ -1081,7 +1081,7 @@ void os::print_location(outputStream* st
  // if C stack is walkable beyond current frame. The check for fp() is not
  // necessary on Sparc, but it's harmless.
  bool os::is_first_C_frame(frame* fr) {

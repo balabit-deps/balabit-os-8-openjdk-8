@@ -1,33 +1,31 @@
-openjdk-8 (8u342-b07-0ubuntu1~20.04) focal-security; urgency=medium
+openjdk-8 (8u352-ga-1~20.04) focal-security; urgency=medium
 
-  * Backport upstream releases 8u342 and 8u332 to 20.04 LTS.
-  * Security fixes in 8u342:
-    - JDK-8272243: Improve DER parsing
-    - JDK-8272249: Better properties of loaded Properties
-    - JDK-8277608: Address IP Addressing
-    - JDK-8281859, CVE-2022-21540: Improve class compilation
-    - JDK-8281866, CVE-2022-21541: Enhance MethodHandle invocations
-    - JDK-8283190: Improve MIDI processing
-    - JDK-8284370: Improve zlib usage
-    - JDK-8285407, CVE-2022-34169: Improve Xalan supports
-  * Security fixes in 8u332:
-    - JDK-8269938: Enhance XML processing passes redux
-    - JDK-8270504, CVE-2022-21426: Better XPath expression handling
-    - JDK-8272255: Completely handle MIDI files
-    - JDK-8272261: Improve JFR recording file processing
-    - JDK-8272594: Better record of recordings
-    - JDK-8274221: More definite BER encodings
-    - JDK-8275151, CVE-2022-21443: Improved Object Identification
-    - JDK-8277227: Better identification of OIDs
-    - JDK-8277672, CVE-2022-21434: Better invocation handler handling
-    - JDK-8278008, CVE-2022-21476: Improve Santuario processing
-    - JDK-8278356: Improve file creation
-    - JDK-8278449: Improve keychain support
-    - JDK-8278805: Enhance BMP image loading
-    - JDK-8278972, CVE-2022-21496: Improve URL supports
-    - JDK-8281388: Change wrapping of EncryptedPrivateKeyInfo
+  * Upload 8u352-ga to Ubuntu 20.04 LTS.
 
- -- Matthias Klose <doko@ubuntu.com>  Sat, 23 Jul 2022 18:13:07 +0200
+ -- Matthias Klose <doko@ubuntu.com>  Tue, 25 Oct 2022 19:26:06 +0200
+
+openjdk-8 (8u352-ga-1) unstable; urgency=medium
+
+  * Update GCC for bookworm/sid and kinetic-proposed from 11 to 12
+    to match default system compiler (this needs testing as people
+    report early issues in other distros)
+  * New upstream release
+  * Security fixes:
+    - JDK-8282252: Improve BigInteger/Decimal validation
+    - JDK-8285662: Better permission resolution
+    - JDK-8286511: Improve macro allocation
+    - JDK-8286519: Better memory handling
+    - JDK-8286526, CVE-2022-21619: Improve NTLM support
+    - JDK-8286533, CVE-2022-21626: Key X509 usages
+    - JDK-8286910, CVE-2022-21624: Improve JNDI lookups
+    - JDK-8286918, CVE-2022-21628: Better HttpServer service
+    - JDK-8288508: Enhance ECDSA usage
+  * Other changes see
+    https://mail.openjdk.org/pipermail/jdk8u-dev/2022-October/015706.html
+  * Drop applied patches
+  * Upload sponsored by ⮡ tarent
+
+ -- Thorsten Glaser <tg@mirbsd.de>  Thu, 20 Oct 2022 18:11:04 +0200
 
 openjdk-8 (8u342-b07-1) unstable; urgency=medium
 
