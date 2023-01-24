@@ -100,10 +100,10 @@ shortver	= 8
 is_release		=
 is_release		= yes
 gh_project		= jdk8u
-gh_tag			= jdk8u352-ga
+gh_tag			= jdk8u362-ga
 version_dash_buildnr	= $(subst ${gh_project},,${gh_tag})
-version_dash_buildnr	= 352-b08
-gh_tag_aarch32		= jdk8u352-ga-aarch32-20221020
+version_dash_buildnr	= 362-b09
+gh_tag_aarch32		= jdk8u362-ga-aarch32-20230119
 #gh_tag_aarch64		= aarch64-shenandoah-jdk8u322-b06
 package_version		= $(subst jdk,,${gh_tag})
 ifneq ($(is_release),yes)

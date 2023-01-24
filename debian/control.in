@@ -1,7 +1,8 @@
 Source: @basename@
 Section: java
 Priority: optional
-Maintainer: Java Maintenance <debian-java@lists.debian.org>
+Maintainer: Ubuntu Developers <ubuntu-devel-discuss@lists.ubuntu.com>
+XSBC-Original-Maintainer: Java Maintenance <debian-java@lists.debian.org>
 Uploaders: Thorsten Glaser <tg@mirbsd.de>
 Build-Depends: debhelper (>= 9), quilt, m4, lsb-release, zip, unzip,
   @bd_bootstrap@

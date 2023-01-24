@@ -1,3 +1,94 @@
+openjdk-8 (8u362-ga-0buntu1) lunar; urgency=medium
+
+  Upstream-provided “Notes on individual issues”:
+
+  client-libs/javax.imageio:
+
+    JDK-8295687: Better BMP bounds
+    ==============================
+    Loading a linked ICC profile within a BMP image is now disabled by
+    default. To re-enable it, set the new system property
+    `sun.imageio.bmp.enabledLinkedProfiles` to `true`.  This new property
+    replaces the old property,
+    `sun.imageio.plugins.bmp.disableLinkedProfiles`.
+
+  client-libs/javax.sound:
+
+    JDK-8293742: Better Banking of Sounds
+    =====================================
+    Previously, the SoundbankReader implementation,
+    `com.sun.media.sound.JARSoundbankReader`, would download a JAR
+    soundbank from a URL.  This behaviour is now disabled by default. To
+    re-enable it, set the new system property `jdk.sound.jarsoundbank` to
+    `true`.
+
+  hotspot/runtime:
+
+    JDK-8274840: Release Now Recognises Windows 11
+    ==============================================
+    This release now correctly sets the `os.name` property to `Windows
+    11`, as would be expected.
+
+  other-libs/corba:idl:
+
+    JDK-8285021: Improve CORBA communication
+    ========================================
+    The JDK's CORBA implementation now refuses by default to deserialize
+    objects, unless they have the "IOR:" prefix.  The previous behaviour
+    can be re-enabled by setting the new property
+    `com.sun.CORBA.ORBAllowDeserializeObject` to `true`.
+
+  security-libs/java.security:
+
+    JDK-8269039: Disabled SHA-1 Signed JARs
+    =======================================
+    JARs signed with SHA-1 algorithms are now restricted by default and
+    treated as if they were unsigned. This applies to the algorithms used
+    to digest, sign, and optionally timestamp the JAR. It also applies to
+    the signature and digest algorithms of the certificates in the
+    certificate chain of the code signer and the Timestamp Authority, and
+    any CRLs or OCSP responses that are used to verify if those
+    certificates have been revoked. These restrictions also apply to
+    signed JCE providers.
+
+    To reduce the compatibility risk for JARs that have been previously
+    timestamped, there is one exception to this policy:
+
+    - Any JAR signed with SHA-1 algorithms and timestamped prior to
+      January 01, 2019 will not be restricted.
+
+    This exception may be removed in a future JDK release. To determine if
+    your signed JARs are affected by this change, run:
+
+    $ jarsigner -verify -verbose -certs`
+
+    on the signed JAR, and look for instances of "SHA1" or "SHA-1" and
+    "disabled" and a warning that the JAR will be treated as unsigned in
+    the output.
+
+    For example:
+
+      Signed by "CN="Signer""
+      Digest algorithm: SHA-1 (disabled)
+      Signature algorithm: SHA1withRSA (disabled), 2048-bit key
+
+      WARNING: The jar will be treated as unsigned, because it is signed with a weak algorithm that is now disabled by the security property:
+
+      jdk.jar.disabledAlgorithms=MD2, MD5, RSA keySize < 1024, DSA keySize < 1024, SHA1 denyAfter 2019-01-01
+
+    JARs affected by these new restrictions should be replaced or
+    re-signed with stronger algorithms.
+
+    Users can, *at their own risk*, remove these restrictions by modifying
+    the `java.security` configuration file (or override it by using the
+    `java.security.properties` system property) and removing "SHA1 usage
+    SignedJAR & denyAfter 2019-01-01" from the
+    `jdk.certpath.disabledAlgorithms` security property and "SHA1
+    denyAfter 2019-01-01" from the `jdk.jar.disabledAlgorithms` security
+    property.
+
+ -- Vladimir Petko <vladimir.petko@canonical.com>  Fri, 20 Jan 2023 09:19:08 +1300
+
 openjdk-8 (8u352-ga-1) unstable; urgency=medium
 
   Warning: JVM_Exit and the ability to run finalisers on exit are gone
