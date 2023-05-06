@@ -1,8 +1,26 @@
-openjdk-8 (8u362-ga-0ubuntu1~20.04.1) focal-security; urgency=medium
+openjdk-8 (8u372-ga~us1-0ubuntu1~20.04) focal-security; urgency=medium
 
-  * Build for Ubuntu 20.04.
+  * Upload to Ubuntu 20.04.
 
- -- Vladimir Petko <vladimir.petko@canonical.com>  Wed, 25 Jan 2023 08:02:58 +1300
+ -- Vladimir Petko <vladimir.petko@canonical.com>  Sat, 06 May 2023 12:53:23 +0200
+
+openjdk-8 (8u372-ga~us1-0ubuntu1) mantic; urgency=medium
+
+  * OpenJDK 8u372 release, build 7.
+    - CVE-2023-21930, CVE-2023-21937, CVE-2023-21938, CVE-2023-21939,
+      CVE-2023-21954, CVE-2023-21967, CVE-2023-21968.
+    - Release notes:
+      https://mail.openjdk.org/pipermail/jdk8u-dev/2023-April/017039.html
+  * d/rules: remove IcedTeaPlugin.so reference (LP: #2016396).
+
+ -- Vladimir Petko <vladimir.petko@canonical.com>  Fri, 28 Apr 2023 15:44:40 +0200
+
+openjdk-8 (8u362-ga-0ubuntu2) lunar; urgency=medium
+
+  * debian/JB-jre-headless.postinst.in: trigger ca-certificates-java after jre
+    is set up.
+
+ -- Vladimir Petko <vladimir.petko@canonical.com>  Wed, 01 Mar 2023 17:18:57 +1300
 
 openjdk-8 (8u362-ga-0ubuntu1) lunar; urgency=medium
 

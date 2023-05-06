@@ -810,9 +810,6 @@ dlopen_jre_depends = \
 
 dlopen_jre_recommends =
 
-plugin_name = IcedTeaPlugin.so
-browser_plugin_dirs = mozilla
-
 # .desktop files need to be multiarch installable
 java_launcher = /$(basedir)/bin/java
 java_launcher = /usr/bin/java
@@ -1839,9 +1836,6 @@ endif
 	  done; \
 	  for i in $(jdk_tools_alt); do \
 	    echo "jdk $$i /$(basedir)/bin/$$i"; \
-	  done; \
-	  for d in $(browser_plugin_dirs); do \
-	    echo "plugin $$d-javaplugin.so /$(basedir)/jre/lib/$(archdir)/$(plugin_name)"; \
 	  done; \
 	) > $(d_jrehl)/$(TOP)/.$(jdiralias).jinfo
 
