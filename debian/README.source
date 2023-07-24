@@ -29,7 +29,6 @@ contain several flags to change how a package is compiled and built.
              binary during installation
   * parallel=X: package should be built using up to X parallel processes
   * noaltzero: don't build alternative Zero VM.
-  * noaltshark: don't build alternative Shark VM.
 
 Sample usage:
 DEB_BUILD_OPTIONS="parallel=5 nocheck" debuild -i"(\.hg|\.bzr)"
@@ -46,11 +45,12 @@ In older releases (stretch, xenial, and anything before), it is
 often not worth the delay to run the tests at all. Reasons for
 test failures are:
 
-• jasm, jcoder, etc. missing: there is no Debian package for
-  https://wiki.openjdk.java.net/display/CodeTools/asmtools
-  at all, despite jtreg officially depending on it (all releases)
+• jasm, jcoder, etc. missing: libasmtools-java only was added to
+  Debian in 2023Q1, despite jtreg officially depending on it
+  ‣ backport/ELTS needed
 
 • jtreg doesn’t know @comment which is used in some tests (old releases)
+  ‣ jtreg6 as backport/via ELTS
 
 • java.lang.NoClassDefFoundError: com/google/common/primitives/Ints
   in testng (old releases)

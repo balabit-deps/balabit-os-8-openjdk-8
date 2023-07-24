@@ -1,0 +1,12 @@
+# DP: - implicit free() decl
+
+--- a/jdk/src/solaris/native/sun/nio/fs/LinuxNativeDispatcher.c
++++ b/jdk/src/solaris/native/sun/nio/fs/LinuxNativeDispatcher.c
+@@ -29,6 +29,7 @@
+ #include "jlong.h"
+ 
+ #include <stdio.h>
++#include <stdlib.h>
+ #include <string.h>
+ #include <dlfcn.h>
+ #include <errno.h>

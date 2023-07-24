@@ -2,4 +2,4 @@
 @basename@-jre-zero binary: repeated-path-segment
 
 # not documentation
-@basename@-jre-zero binary: package-contains-documentation-outside-usr-share-doc */Xusage.txt
+@basename@-jre-zero binary: package-contains-documentation-outside-usr-share-doc */Xusage.txt*

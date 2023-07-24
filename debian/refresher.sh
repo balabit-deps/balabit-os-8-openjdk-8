@@ -5,6 +5,7 @@ set -o pipefail
 cd "$(dirname "$0")/.."
 qrc=$PWD/debian/refresher.rc
 arch=amd64
+q() { quilt --quiltrc "$qrc" "$@"; }
 
 set -x
 for action in "$@"; do
@@ -19,10 +20,10 @@ for action in "$@"; do
 		arch=$action
 		debian/rules DEB_HOST_ARCH=$arch stamps/series
 		cd src
-		while quilt --quiltrc "$qrc" push; do
-			quilt --quiltrc "$qrc" refresh
+		while q push; do
+			q refresh
 		done
-		quilt --quiltrc "$qrc" pop -a
+		q pop -a
 		cd ..
 		;;
 	}

@@ -1,0 +1,42 @@
+# DP: GCC doesn’t like mixing inline with default arguments
+
+--- a/hotspot/src/cpu/sparc/vm/nativeInst_sparc.cpp
++++ b/hotspot/src/cpu/sparc/vm/nativeInst_sparc.cpp
+@@ -222,7 +222,7 @@ void NativeCall::test() {
+   nc = nativeCall_at( cb.insts_begin() );
+   nc->print();
+ 
+-  nc = nativeCall_overwriting_at( nc->next_instruction_address() );
++  nc = nativeCall_overwriting_at( nc->next_instruction_address(), NULL );
+   for (idx = 0; idx < ARRAY_SIZE(offsets); idx++) {
+     nc->set_destination( cb.insts_begin() + offsets[idx] );
+     assert(nc->destination() == (cb.insts_begin() + offsets[idx]), "check unit test");
+--- a/hotspot/src/cpu/sparc/vm/nativeInst_sparc.hpp
++++ b/hotspot/src/cpu/sparc/vm/nativeInst_sparc.hpp
+@@ -370,7 +370,7 @@ class NativeCall: public NativeInstructi
+ 
+   // Creation
+   friend inline NativeCall* nativeCall_at(address instr);
+-  friend NativeCall* nativeCall_overwriting_at(address instr, address destination = NULL) {
++  friend NativeCall* nativeCall_overwriting_at(address instr, address destination) {
+     // insert a "blank" call:
+     NativeCall* call = (NativeCall*)instr;
+     call->set_long_at(0 * BytesPerInstWord, call_instruction(destination, instr));
+@@ -429,7 +429,7 @@ inline NativeFarCall* nativeFarCall_at(a
+ class NativeFarCall : public NativeCall {
+ public:
+   friend inline NativeFarCall* nativeFarCall_at(address instr) { return (NativeFarCall*)nativeCall_at(instr); }
+-  friend NativeFarCall* nativeFarCall_overwriting_at(address instr, address destination = NULL)
++  friend NativeFarCall* nativeFarCall_overwriting_at(address instr, address destination)
+                                                         { return (NativeFarCall*)nativeCall_overwriting_at(instr, destination); }
+   friend NativeFarCall* nativeFarCall_before(address return_address)
+                                                         { return (NativeFarCall*)nativeCall_before(return_address); }
+@@ -481,7 +481,7 @@ class NativeFarCall: public NativeInstru
+     return call;
+   }
+ 
+-  friend inline NativeFarCall* nativeFarCall_overwriting_at(address instr, address destination = NULL) {
++  friend inline NativeFarCall* nativeFarCall_overwriting_at(address instr, address destination) {
+     Unimplemented();
+     NativeFarCall* call = (NativeFarCall*)instr;
+     return call;

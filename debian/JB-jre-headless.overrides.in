@@ -1,5 +1,5 @@
 # empty directory by intent
-@basename@-jre-headless binary: package-contains-empty-directory usr/share/binfmts/
+@basename@-jre-headless binary: package-contains-empty-directory *usr/share/binfmts/*
 
 # Ignore the mouse cursors
 @basename@-jre-headless binary: image-file-in-usr-lib
@@ -14,9 +14,9 @@
 @basename@-jre-headless binary: repeated-path-segment
 
 # not documentation
-@basename@-jre-headless binary: package-contains-documentation-outside-usr-share-doc */Xusage.txt
-@basename@-jre-headless binary: package-contains-documentation-outside-usr-share-doc */jvm.hprof.txt
+@basename@-jre-headless binary: package-contains-documentation-outside-usr-share-doc */Xusage.txt*
+@basename@-jre-headless binary: package-contains-documentation-outside-usr-share-doc */jvm.hprof.txt*
 
 # this is a plugin
-@basename@-jre-headless binary: library-not-linked-against-libc */libjawt.so
-@basename@-jre-headless binary: shared-library-lacks-prerequisites */libjsound.so
+@basename@-jre-headless binary: library-not-linked-against-libc */libjawt.so*
+@basename@-jre-headless binary: shared-library-lacks-prerequisites */libjsound.so*

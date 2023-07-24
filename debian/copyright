@@ -41,9 +41,9 @@ Copyright:
 
 OpenJDK:
     Copyright © 1996-2007 Sun Microsystems, Inc.
-    Copyright © 1996-2022 Oracle and/or its affiliates.
+    Copyright © 1996-2023 Oracle and/or its affiliates.
     For third party copyrights see below (copies from the third party readme).
-    Portions Copyright © 1993-2014 IBM Corp.
+    Portions Copyright © 1993-2014 International Business Machines Corp.
     Portions Copyright © 1997 Eastman Kodak Company.
     Portions Copyright © 1999-2005 The Apache Software Foundation
       (or licenced to the ASF under CLAs).
@@ -51,11 +51,12 @@ OpenJDK:
     Portions Copyright © 2021 Azul, Inc.
     Portions Copyright © 2013–2022 Red Hat, Inc.
     Portions Copyright © 2016 Google Inc.
-    Portions Copyright © 2019 Amazon.com, Inc. or its affiliates.
+    Portions Copyright © 2019–2021 Amazon.com, Inc. or its affiliates.
     Portions Copyright © 2019 JetBrains s.r.o.
     Portions Copyright © 2019–2020 SAP SE.
     Portions Copyright © 2021 Huawei Technologies Co., Ltd.
     Portions Copyright © 2021 Arm Limited.
+    Portions Copyright © 2022 THL A29 Limited, a Tencent company.
 
 IcedTea Sound:
     Portions Copyright © 2008-2014 Red Hat, Inc.
@@ -73,6 +74,7 @@ Java Access Bridge:
 Packaging:
     Copyright © 2007-2014 Canonical Ltd.
     Copyright © 2021, 2022 mirabilos and ⮡ tarent solutions GmbH
+    Copyright © 2023 mirabilos and Qvest digital AG
 
 SipHash:
     Copyright © Copyright (c) 2012-2014 Daniel J. Bernstein <djb@cr.yp.to>
@@ -2703,7 +2705,6 @@ ANNOTATIONS
     incorporate parts of UPX or UCL into such a product.
 
 
-
 Markus F.X.J. Oberhumer                   Laszlo Molnar
 markus.oberhumer@jk.uni-linz.ac.at        ml1050@cdata.tvnet.hu
 
@@ -3575,7 +3576,7 @@ info@urwpp.de or design@bigelowandholmes.com
 
 -------------------------------------------------------------------------------
 
-%% This notice is provided with respect to zlib v1.2.11, which may be included
+%% This notice is provided with respect to zlib v1.2.13, which may be included
 with JRE 8, JDK 8, and OpenJDK 8.
 
 Acknowledgments:
@@ -3587,7 +3588,7 @@ Acknowledgments:
 
 Copyright notice:
 
- (C) 1995-2017 Jean-loup Gailly and Mark Adler
+ (C) 1995-2022 Jean-loup Gailly and Mark Adler
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages

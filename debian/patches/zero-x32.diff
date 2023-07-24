@@ -41,7 +41,7 @@
    esac
 --- a/hotspot/src/os/linux/vm/os_linux.cpp
 +++ b/hotspot/src/os/linux/vm/os_linux.cpp
-@@ -1980,7 +1980,7 @@ void * os::dll_load(const char *filename
+@@ -1976,7 +1976,7 @@ void * os::dll_load(const char *filename
  
    #if  (defined IA32)
      static  Elf32_Half running_arch_code=EM_386;

@@ -4,6 +4,7 @@ set -e
 
 multiarch=@multiarch@
 priority=@priority@
+is_default=@is_default@
 basedir=/@basedir@
 mandir=$basedir/jre/man
 srcext=1.gz
@@ -28,10 +29,10 @@ configure)
 	    fi
 	done
     fi
-    if [ "$update_alternatives" != y ] && [ $priority -gt 1060 ]; then
+    test "$update_alternatives" = y || if test "$is_default" = yes; then
 	for i in $jre_tools; do
 	    oldp=$(update-alternatives --query java | awk -v b=$basedir '/^Alternative:/ && $2~b {p=1} /^Priority:/ && p {print $2; exit}')
-	    if [ -n "$oldp" ] && [ "$oldp" -le 1060 ]; then
+	    test -z "$oldp" || if test "$oldp" -lt $priority; then
 		update_alternatives=y
 		break
 	    fi

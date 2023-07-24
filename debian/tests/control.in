@@ -1,0 +1,7 @@
+Tests: hotspot, langtools
+Depends: @, default-jre-headless, @dtd_check@, g++
+Restrictions: allow-stderr, skippable, flaky
+
+Tests: jdk
+Depends: @, default-jre-headless, @dtd_check@, g++, xfwm4, xvfb, dbus-x11, unzip, zip
+Restrictions: allow-stderr, skippable, flaky
