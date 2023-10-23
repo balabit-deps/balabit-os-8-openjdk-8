@@ -1,11 +1,47 @@
-openjdk-8 (8u382-ga-1~20.04.1) focal-security; urgency=medium
+openjdk-8 (8u392-ga-1~20.04) focal-security; urgency=low
 
   * Upload to Ubuntu 20.04.
-  * CVE-2023-22045, CVE-2023-22049.
-  * Release notes:
-    https://mail.openjdk.org/pipermail/jdk8u-dev/2023-July/017285.html.
 
- -- Vladimir Petko <vladimir.petko@canonical.com>  Tue, 25 Jul 2023 08:18:00 +1200
+ -- Vladimir Petko <vladimir.petko@canonical.com>  Mon, 23 Oct 2023 21:35:09 +1300
+
+openjdk-8 (8u392-ga-1) unstable; urgency=low
+
+  [ Emmanuel Bourg ]
+  * Provide versioned java-runtime, java-runtime-headless, java-sdk
+    and java-sdk-headless virtual packages
+
+  [ Thorsten Glaser ]
+  * Link with -Wl,--no-as-needed like openjdk-11 in case 8u ever loses
+    the mapfiles (cf. #1031521)
+  * Depend on libasmtools-java on buster, bullseye as well
+  * New upstream release
+  * CVEs
+    - CVE-2023-22067
+    - CVE-2023-22081
+  * Security fixes
+    - JDK-8286503, JDK-8312367: Enhance security classes
+    - JDK-8297856: Improve handling of Bidi characters
+    - JDK-8303384: Improved communication in CORBA
+    - JDK-8305815, JDK-8307278: Update Libpng to 1.6.39
+      (not relevant, as we use the system libraries)
+    - JDK-8309966: Enhanced TLS connections
+  * Other changes see
+    https://mail.openjdk.org/pipermail/jdk8u-dev/2023-October/017616.html
+  * Use b07 for aarch32, patch it to b08/ga, aarch32-b08 doesn’t exist yet
+  * Update pathnames used by the embedded library removal code (repacking)
+  * Overhaul d/copyright using both upstream notices and diff review
+  * Upload sponsored by QVEST ⮡ dıgıtal
+
+ -- Thorsten Glaser <tg@mirbsd.de>  Sat, 21 Oct 2023 21:26:54 +0200
+
+openjdk-8 (8u382-ga-2) unstable; urgency=low
+
+  * Update 8u382-ga-1 changelog entry
+  * On releases that have it, switch to libjpeg-dev B-D so that
+    certain derivatives can reuse d/control (Closes: #1042855)
+  * Use default gcc-13 on trixie/sid, mantic
+
+ -- Thorsten Glaser <tg@mirbsd.de>  Thu, 03 Aug 2023 02:55:51 +0200
 
 openjdk-8 (8u382-ga-1) unstable; urgency=medium
 
@@ -27,6 +63,16 @@ openjdk-8 (8u382-ga-1) unstable; urgency=medium
 
   [ Thorsten Glaser ]
   * New upstream release
+  * CVEs
+    - CVE-2023-22045
+    - CVE-2023-22049
+  * Security fixes
+    - JDK-8298676: Enhanced Look and Feel
+    - JDK-8300596: Enhance Jar Signature validation
+    - JDK-8304468: Better array usages
+    - JDK-8305312: Enhanced path handling
+  * Other changes see
+    https://mail.openjdk.org/pipermail/jdk8u-dev/2023-July/017285.html
   * Upload sponsored by ⮡̶ ̶t̶a̶r̶e̶n̶t̶Qvest digital
 
  -- Thorsten Glaser <tg@mirbsd.de>  Fri, 21 Jul 2023 19:19:02 +0200

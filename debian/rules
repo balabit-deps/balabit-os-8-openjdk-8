@@ -95,10 +95,11 @@ shortver	= 8
 is_release		=
 is_release		= yes
 gh_project		= jdk8u
-gh_tag			= jdk8u382-ga
+gh_tag			= jdk8u392-ga
 version_dash_buildnr	= $(subst ${gh_project},,${gh_tag})
-version_dash_buildnr	= 382-b05
-gh_tag_aarch32		= jdk8u382-ga-aarch32-20230719
+version_dash_buildnr	= 392-b08
+# patched to get up to b08 (${UPSTREAM_PATCHES})
+gh_tag_aarch32		= jdk8u392-b07-aarch32-20231002
 package_version		= $(subst jdk,,${gh_tag})
 ifneq ($(is_release),yes)
   package_version	:= $(subst -,~,$(package_version))
@@ -213,7 +214,7 @@ dpkg_buildflags_hs = \
 # jdk/make/CompileDemos.gmk (SetupJVMTIDemo) doesn't like commas in flags
 dpkg_buildflags_hs += \
 	DEB_LDFLAGS_MAINT_STRIP="-Wl,-z,relro -Wl,-Bsymbolic-functions" \
-	DEB_LDFLAGS_MAINT_APPEND="-Xlinker -z -Xlinker relro -Xlinker -Bsymbolic-functions"
+	DEB_LDFLAGS_MAINT_APPEND="-Xlinker -z -Xlinker relro -Xlinker -Bsymbolic-functions -Xlinker --no-as-needed"
 dpkg_buildflags_hs += dpkg-buildflags
 export EXTRA_CPPFLAGS_HS := $(shell $(dpkg_buildflags_hs) --get CPPFLAGS)
 export EXTRA_CFLAGS_HS   := $(shell $(dpkg_buildflags_hs) --get CFLAGS) $(shell $(dpkg_buildflags_hs) --get CPPFLAGS)
@@ -242,7 +243,6 @@ export EXTRA_CFLAGS_IT   := $(shell $(dpkg_buildflags_it) --get CFLAGS)
 export EXTRA_CXXFLAGS_IT := $(shell $(dpkg_buildflags_it) --get CXXFLAGS)
 export EXTRA_LDFLAGS_IT  := $(shell $(dpkg_buildflags_it) --get LDFLAGS)
 
-# This section should be in sync with "bd_gcc" definition
 ifneq (,$(filter $(distrel),precise))
   gccver=4.6
 else ifneq (,$(filter $(distrel),wheezy))
@@ -265,9 +265,13 @@ else ifneq (,$(filter $(distrel),bullseye))
   gccver=10
 else ifneq (,$(filter $(distrel),jammy))
   gccver=11
-else
+else ifneq (,$(filter $(distrel),bookworm kinetic lunar))
   gccver=12
+else
+  gccver=13
 endif
+
+bd_gcc = gcc-${gccver}, g++-${gccver},
 
 ifneq (,$(shell command -v ${DEB_HOST_GNU_TYPE}-gcc-${gccver}))
   export CC=${DEB_HOST_GNU_TYPE}-gcc-${gccver}
@@ -326,6 +330,9 @@ ifneq (,$(filter $(DEB_HOST_ARCH), sparc64))
   USE_PRECOMPILED_HEADER = 0
   export USE_PRECOMPILED_HEADER
 endif
+
+UPSTREAM_PATCHES =
+	# nothing (filled below if needed)
 
 COMMON_PATCHES = \
 	autoconf-select.diff \
@@ -404,16 +411,19 @@ endif
 
 # set LIBARCH/aarch32 to arm
 ifneq (,$(filter $(DEB_HOST_ARCH), $(hotspot_aarch32_archs)))
+  UPSTREAM_PATCHES += b07-to-b08-hotspot.diff
   COMMON_PATCHES += \
 	aarch32.diff
 endif
 
 DEFAULT_PATCHES = \
+	${UPSTREAM_PATCHES} \
 	$(COMMON_PATCHES) \
 	hotspot-libpath-$(hotspot_version).diff
 
 # for additional zero builds
 ZERO_PATCHES = \
+	${UPSTREAM_PATCHES} \
 	$(COMMON_PATCHES) \
 	hotspot-libpath-default.diff
 
@@ -652,7 +662,7 @@ else
   dtd_check += jtreg,
 #endif
 endif
-ifeq (,$(filter $(distrel),wheezy jessie stretch buster bullseye precise trusty xenial))
+ifeq (,$(filter $(distrel),wheezy jessie stretch precise trusty xenial))
   bd_check += libasmtools-java@nocheck@,
   dtd_check += libasmtools-java,
 endif
@@ -676,8 +686,6 @@ else
   dh_compat = 10
 endif
 
-# This section should be in sync with "CC/CXX" definition
-bd_gcc = gcc-${gccver}, g++-${gccver},
 bd_syslibs = zlib1g-dev, libattr1-dev,
 ifneq (,$(filter $(distrel),wheezy jessie precise trusty xenial))
   bd_syslibs += libpng12-dev,
@@ -685,11 +693,14 @@ else
   bd_syslibs += libpng-dev,
 endif
 ifeq ($(derivative),Ubuntu)
-  bd_syslibs += libjpeg-turbo8-dev,
+  # precise+ libjpeg-dev → libjpeg8-dev → libjpeg-turbo8-dev
+  #                        libjpeg8     → libjpeg-turbo8
+  bd_syslibs += libjpeg-dev,
 else ifneq (,$(filter $(distrel),wheezy))
   bd_syslibs += libjpeg8-dev,
 else
-  bd_syslibs += libjpeg62-turbo-dev,
+  # jessie+ libjpeg-dev → libjpeg62-turbo-dev
+  bd_syslibs += libjpeg-dev,
 endif
 bd_syslibs += \
 	libgif-dev,
@@ -734,6 +745,7 @@ endif
 
 dlopen_hl_depends = \
 	libcups2, liblcms2-2,
+# see above (libjpeg-dev)
 ifeq ($(derivative),Ubuntu)
   dlopen_hl_depends += libjpeg-turbo8,
 else ifneq (,$(filter $(distrel),wheezy))
@@ -1029,16 +1041,6 @@ ifneq (,$(filter $(DEB_HOST_ARCH),$(hotspot_aarch32_archs)))
 	mv $(srcdir)/$$(tar tf hotspot-aarch32.tar.xz | head -1 | sed 's,/.*,,') \
 	  $(srcdir)/hotspot
 endif
-
-	: # remove embedded libraries
-	find $(srcdir)/jdk/src/share/native/sun/awt/image/jpeg \
-	  ! -name imageioJPEG.c ! -name jpegdecoder.c ! -name jinclude.h \
-	  -type f -delete
-	rm -rf $(srcdir)/jdk/src/share/native/sun/awt/libpng/*
-	rm -rf $(srcdir)/jdk/src/share/native/sun/awt/giflib/*
-	rm -rf $(srcdir)/jdk/src/share/native/sun/java2d/cmm/lcms/cms*
-	rm -rf $(srcdir)/jdk/src/share/native/sun/java2d/cmm/lcms/lcms2*
-	rm -rf $$d/src/solaris/native/sun/security/smartcardio/MUSCLE
 
 	$(MAKE) -f debian/rules packaging-files
 
@@ -2005,7 +2007,7 @@ dfsg-orig:
 	    mv $$f.new $$f; \
 	  done; \
 	  case $$repo in jdk) \
-	    rm -v -rf $$repo/src/share/native/java/util/zip/zlib-*; \
+	    rm -v -rf $$repo/src/share/native/java/util/zip/zlib*; \
 	    find $$repo/src/share/native/sun/awt/image/jpeg \
 	      ! -name imageioJPEG.c ! -name jpegdecoder.c ! -name jinclude.h \
 	      -type f -print -delete; \

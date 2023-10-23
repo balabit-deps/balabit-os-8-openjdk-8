@@ -158,7 +158,7 @@
    ifneq ($(OPENJDK_TARGET_OS), macosx)
      LIBSPLASHSCREEN_DIRS += $(JDK_TOPDIR)/src/$(OPENJDK_TARGET_OS_API_DIR)/native/sun/awt/splashscreen
    else
-@@ -1205,11 +1228,13 @@ ifndef BUILD_HEADLESS_ONLY
+@@ -1211,11 +1234,13 @@ ifndef BUILD_HEADLESS_ONLY
        EXCLUDE_FILES := imageioJPEG.c jpegdecoder.c pngtest.c, \
        LANG := C, \
        OPTIMIZATION := LOW, \

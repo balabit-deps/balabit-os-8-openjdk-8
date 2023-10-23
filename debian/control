@@ -9,7 +9,7 @@ Build-Depends: debhelper (>= 11), quilt, m4, lsb-release, zip, unzip,
   xvfb<!nocheck>, xauth<!nocheck>, xfonts-base<!nocheck>, libgl1-mesa-dri<!nocheck>, xfwm4<!nocheck>, x11-xkb-utils<!nocheck>, dbus-x11<!nocheck>, openjdk-8-jre-headless<!nocheck> | default-jre-headless (>= 2:1.8)<!nocheck>, jtreg<!nocheck>, libasmtools-java<!nocheck>, testng<!nocheck>, time,
   autoconf (>= 2.69), automake, ant, ant-optional, fastjar (>= 2:0.96-0ubuntu2),
   gcc-9, g++-9, libxtst-dev, libxi-dev, libxt-dev, libxaw7-dev, libxrender-dev, libcups2-dev, libasound2-dev, liblcms2-dev, libxinerama-dev, libkrb5-dev, xsltproc, libpcsclite-dev, libfreetype-dev, libgtk2.0-dev, libffi-dev,
-  zlib1g-dev, libattr1-dev, libpng-dev, libjpeg-turbo8-dev, libgif-dev, libpulse-dev (>= 0.9.12) [!alpha], systemtap-sdt-dev,
+  zlib1g-dev, libattr1-dev, libpng-dev, libjpeg-dev, libgif-dev, libpulse-dev (>= 0.9.12) [!alpha], systemtap-sdt-dev,
   libnss3-dev (>= 2:3.26), openjdk-8-jdk-headless <cross>, dpkg-dev (>= 1.17.14),
 Standards-Version: 4.6.2
 Homepage: http://openjdk.java.net/
@@ -23,7 +23,7 @@ Pre-Depends: ${dpkg:Depends}
 Depends: openjdk-8-jre-headless (= ${binary:Version}),
   ${shlibs:Depends}, ${misc:Depends}
 Suggests: openjdk-8-demo, openjdk-8-source
-Provides: java-sdk-headless, java2-sdk-headless,
+Provides: java-sdk-headless (= 8), java2-sdk-headless,
   java5-sdk-headless, java6-sdk-headless,
   java7-sdk-headless, java8-sdk-headless,
 Breaks: openjdk-8-jre-headless (<< 8u232-b07-1),
@@ -51,7 +51,7 @@ Recommends: ${dlopenhl:Recommends}
 Suggests: libnss-mdns,
   fonts-dejavu-extra,
   fonts-nanum, fonts-ipafont-gothic, fonts-ipafont-mincho, fonts-wqy-microhei, fonts-wqy-zenhei, fonts-indic,
-Provides: java-runtime-headless, java2-runtime-headless,
+Provides: java-runtime-headless (= 8), java2-runtime-headless,
   java5-runtime-headless, java6-runtime-headless,
   java7-runtime-headless, java8-runtime-headless,
   ${defaultvm:Provides}, ${jvm:Provides}
@@ -73,7 +73,7 @@ Depends: openjdk-8-jre (= ${binary:Version}),
   ${shlibs:Depends}, ${misc:Depends}
 Recommends: libxt-dev
 Suggests: openjdk-8-demo, openjdk-8-source, visualvm
-Provides: java-sdk, java2-sdk, java5-sdk, java6-sdk,
+Provides: java-sdk (= 8), java2-sdk, java5-sdk, java6-sdk,
   java7-sdk, java8-sdk, java-compiler
 Description: OpenJDK Development Kit (JDK)
  OpenJDK is a development environment for building applications,
@@ -95,7 +95,7 @@ Depends: openjdk-8-jre-headless (= ${binary:Version}),
   ${shlibs:Depends}, ${misc:Depends}
 Recommends: ${dlopenjre:Recommends}, fonts-dejavu-extra
 Replaces: openjdk-8-jre-headless (<< 8u20~b20-3)
-Provides: java-runtime, java2-runtime,
+Provides: java-runtime (= 8), java2-runtime,
   java5-runtime, java6-runtime,
   java7-runtime, java8-runtime
 Description: OpenJDK Java runtime, using ${vm:Name}

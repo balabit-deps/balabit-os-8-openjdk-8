@@ -1,0 +1,299 @@
+# DP: git diff jdk8u392-b07..jdk8u392-b08 hotspot
+
+--- a/hotspot/THIRD_PARTY_README
++++ b/hotspot/THIRD_PARTY_README
+@@ -1472,7 +1472,7 @@ included with JDK 8 and OpenJDK 8 source
+ 
+ -------------------------------------------------------------------------------
+ 
+-%% This notice is provided with respect to libpng 1.6.37, which may be
++%% This notice is provided with respect to libpng 1.6.39, which may be
+ included with JRE 8, JDK 8, and OpenJDK 8.
+ 
+ --- begin of LICENSE ---
+@@ -1483,11 +1483,11 @@ COPYRIGHT NOTICE, DISCLAIMER, and LICENS
+ PNG Reference Library License version 2
+ ---------------------------------------
+ 
+- * Copyright (c) 1995-2019 The PNG Reference Library Authors.
+- * Copyright (c) 2018-2019 Cosmin Truta.
+- * Copyright (c) 2000-2002, 2004, 2006-2018 Glenn Randers-Pehrson.
+- * Copyright (c) 1996-1997 Andreas Dilger.
+- * Copyright (c) 1995-1996 Guy Eric Schalnat, Group 42, Inc.
++Copyright (c) 1995-2022 The PNG Reference Library Authors.
++Copyright (c) 2018-2022 Cosmin Truta
++Copyright (c) 1998-2018 Glenn Randers-Pehrson
++Copyright (c) 1996-1997 Andreas Dilger
++Copyright (c) 1995-1996 Guy Eric Schalnat, Group 42, Inc.
+ 
+ The software is supplied "as is", without warranty of any kind,
+ express or implied, including, without limitation, the warranties
+@@ -1614,10 +1614,10 @@ be appreciated.
+ 
+ TRADEMARK:
+ 
+-The name "libpng" has not been registered by the Copyright owner
++The name "libpng" has not been registered by the Copyright owners
+ as a trademark in any jurisdiction.  However, because libpng has
+ been distributed and maintained world-wide, continually since 1995,
+-the Copyright owner claims "common-law trademark protection" in any
++the Copyright owners claim "common-law trademark protection" in any
+ jurisdiction where common-law trademark is recognized.
+ 
+ OSI CERTIFICATION:
+@@ -1639,6 +1639,59 @@ Glenn Randers-Pehrson
+ glennrp at users.sourceforge.net
+ July 15, 2018
+ 
++AUTHORS File Information:
++
++PNG REFERENCE LIBRARY AUTHORS
++=============================
++
++This is the list of PNG Reference Library ("libpng") Contributing
++Authors, for copyright and licensing purposes.
++
++ * Andreas Dilger
++ * Cosmin Truta
++ * Dave Martindale
++ * Eric S. Raymond
++ * Gilles Vollant
++ * Glenn Randers-Pehrson
++ * Greg Roelofs
++ * Guy Eric Schalnat
++ * James Yu
++ * John Bowler
++ * Kevin Bracey
++ * Magnus Holmgren
++ * Mandar Sahastrabuddhe
++ * Mans Rullgard
++ * Matt Sarett
++ * Mike Klein
++ * Pascal Massimino
++ * Paul Schmidt
++ * Qiang Zhou
++ * Sam Bushell
++ * Samuel Williams
++ * Simon-Pierre Cadieux
++ * Tim Wegner
++ * Tom Lane
++ * Tom Tanner
++ * Vadim Barkov
++ * Willem van Schaik
++ * Zhijie Liang
++ * Arm Holdings
++   - Richard Townsend
++ * Google Inc.
++   - Dan Field
++   - Leon Scroggins III
++   - Matt Sarett
++   - Mike Klein
++   - Sami Boukortt
++
++The build projects, the build scripts, the test scripts, and other
++files in the "ci", "projects", "scripts" and "tests" directories, have
++other copyright owners, but are released under the libpng license.
++
++Some files in the "contrib" directory, and some tools-generated files
++that are distributed with libpng, have other copyright owners, and are
++released under other open source licenses.
++
+ --- end of LICENSE ---
+ 
+ -------------------------------------------------------------------------------
+--- a/hotspot/src/share/vm/c1/c1_GraphBuilder.cpp
++++ b/hotspot/src/share/vm/c1/c1_GraphBuilder.cpp
+@@ -206,8 +206,10 @@ void BlockListBuilder::handle_exceptions
+ }
+ 
+ void BlockListBuilder::handle_jsr(BlockBegin* current, int sr_bci, int next_bci) {
+-  // start a new block after jsr-bytecode and link this block into cfg
+-  make_block_at(next_bci, current);
++  if (next_bci < method()->code_size()) {
++    // start a new block after jsr-bytecode and link this block into cfg
++    make_block_at(next_bci, current);
++  }
+ 
+   // start a new block at the subroutine entry at mark it with special flag
+   BlockBegin* sr_block = make_block_at(sr_bci, current);
+@@ -227,6 +229,8 @@ void BlockListBuilder::set_leaders() {
+   // branch target and a modification of the successor lists.
+   BitMap bci_block_start = method()->bci_block_start();
+ 
++  int end_bci = method()->code_size();
++
+   ciBytecodeStream s(method());
+   while (s.next() != ciBytecodeStream::EOBC()) {
+     int cur_bci = s.cur_bci();
+@@ -297,7 +301,9 @@ void BlockListBuilder::set_leaders() {
+       case Bytecodes::_if_acmpne: // fall through
+       case Bytecodes::_ifnull:    // fall through
+       case Bytecodes::_ifnonnull:
+-        make_block_at(s.next_bci(), current);
++        if (s.next_bci() < end_bci) {
++          make_block_at(s.next_bci(), current);
++        }
+         make_block_at(s.get_dest(), current);
+         current = NULL;
+         break;
+--- a/hotspot/src/share/vm/ci/ciMethodBlocks.cpp
++++ b/hotspot/src/share/vm/ci/ciMethodBlocks.cpp
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
++ * Copyright (c) 2006, 2022, Oracle and/or its affiliates. All rights reserved.
+  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
+  *
+  * This code is free software; you can redistribute it and/or modify it
+@@ -33,12 +33,13 @@
+ 
+ 
+ ciBlock *ciMethodBlocks::block_containing(int bci) {
++  assert(bci >= 0 && bci < _code_size, "valid bytecode range");
+   ciBlock *blk = _bci_to_block[bci];
+   return blk;
+ }
+ 
+ bool ciMethodBlocks::is_block_start(int bci) {
+-  assert(bci >=0 && bci < _code_size, "valid bytecode range");
++  assert(bci >= 0 && bci < _code_size, "valid bytecode range");
+   ciBlock *b = _bci_to_block[bci];
+   assert(b != NULL, "must have block for bytecode");
+   return b->start_bci() == bci;
+@@ -146,7 +147,9 @@ void ciMethodBlocks::do_analysis() {
+       case Bytecodes::_ifnonnull   :
+       {
+         cur_block->set_control_bci(bci);
+-        ciBlock *fall_through = make_block_at(s.next_bci());
++        if (s.next_bci() < limit_bci) {
++          ciBlock *fall_through = make_block_at(s.next_bci());
++        }
+         int dest_bci = s.get_dest();
+         ciBlock *dest = make_block_at(dest_bci);
+         break;
+@@ -166,7 +169,9 @@ void ciMethodBlocks::do_analysis() {
+       case Bytecodes::_jsr         :
+       {
+         cur_block->set_control_bci(bci);
+-        ciBlock *ret = make_block_at(s.next_bci());
++        if (s.next_bci() < limit_bci) {
++          ciBlock *ret = make_block_at(s.next_bci());
++        }
+         int dest_bci = s.get_dest();
+         ciBlock *dest = make_block_at(dest_bci);
+         break;
+@@ -224,7 +229,9 @@ void ciMethodBlocks::do_analysis() {
+       case Bytecodes::_jsr_w       :
+       {
+         cur_block->set_control_bci(bci);
+-        ciBlock *ret = make_block_at(s.next_bci());
++        if (s.next_bci() < limit_bci) {
++          ciBlock *ret = make_block_at(s.next_bci());
++        }
+         int dest_bci = s.get_far_dest();
+         ciBlock *dest = make_block_at(dest_bci);
+         break;
+--- a/hotspot/src/share/vm/compiler/methodLiveness.cpp
++++ b/hotspot/src/share/vm/compiler/methodLiveness.cpp
+@@ -268,10 +268,11 @@ void MethodLiveness::init_basic_blocks()
+       case Bytecodes::_ifnull:
+       case Bytecodes::_ifnonnull:
+         // Two way branch.  Set predecessors at each destination.
+-        dest = _block_map->at(bytes.next_bci());
+-        assert(dest != NULL, "must be a block immediately following this one.");
+-        dest->add_normal_predecessor(current_block);
+-
++        if (bytes.next_bci() < method_len) {
++          dest = _block_map->at(bytes.next_bci());
++          assert(dest != NULL, "must be a block immediately following this one.");
++          dest->add_normal_predecessor(current_block);
++        }
+         dest = _block_map->at(bytes.get_dest());
+         assert(dest != NULL, "branch desination must start a block.");
+         dest->add_normal_predecessor(current_block);
+--- /dev/null
++++ b/hotspot/test/compiler/parsing/Custom.jasm
+@@ -0,0 +1,38 @@
++/*
++ * Copyright (c) 2022, Oracle and/or its affiliates. All rights reserved.
++ * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
++ *
++ * This code is free software; you can redistribute it and/or modify it
++ * under the terms of the GNU General Public License version 2 only, as
++ * published by the Free Software Foundation.
++ *
++ * This code is distributed in the hope that it will be useful, but WITHOUT
++ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
++ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
++ * version 2 for more details (a copy is included in the LICENSE file that
++ * accompanied this code).
++ *
++ * You should have received a copy of the GNU General Public License version
++ * 2 along with this work; if not, write to the Free Software Foundation,
++ * Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
++ *
++ * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
++ * or visit www.oracle.com if you need additional information or have any
++ * questions.
++ */
++
++package compiler/parsing;
++
++super public class Custom {
++
++    public static Method test:"(I)V" stack 2 locals 1 {
++        return;
++Loop:
++        // Unreachable block
++        iload_0;
++        bipush        100;
++        if_icmpge     Loop;
++        // Falls through
++    }
++
++}
+--- /dev/null
++++ b/hotspot/test/compiler/parsing/UnreachableBlockFallsThroughEndOfCode.java
+@@ -0,0 +1,42 @@
++/*
++ * Copyright (c) 2022, Oracle and/or its affiliates. All rights reserved.
++ * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
++ *
++ * This code is free software; you can redistribute it and/or modify it
++ * under the terms of the GNU General Public License version 2 only, as
++ * published by the Free Software Foundation.
++ *
++ * This code is distributed in the hope that it will be useful, but WITHOUT
++ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
++ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
++ * version 2 for more details (a copy is included in the LICENSE file that
++ * accompanied this code).
++ *
++ * You should have received a copy of the GNU General Public License version
++ * 2 along with this work; if not, write to the Free Software Foundation,
++ * Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
++ *
++ * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
++ * or visit www.oracle.com if you need additional information or have any
++ * questions.
++ *
++ */
++
++/*
++ * @test UnreachableBlockFallsThroughEndOfCode.java
++ * @bug 8283441
++ * @compile Custom.jasm UnreachableBlockFallsThroughEndOfCode.java
++ * @summary Compiling method that falls off the end of the code array
++ * @run main/othervm -XX:TieredStopAtLevel=1 -Xbatch compiler.parsing.UnreachableBlockFallsThroughEndOfCode
++ * @run main/othervm -XX:-TieredCompilation -Xbatch compiler.parsing.UnreachableBlockFallsThroughEndOfCode
++ */
++
++package compiler.parsing;
++
++public class UnreachableBlockFallsThroughEndOfCode {
++    public static void main(String[] strArr) {
++        for (int i = 0; i < 20000; i++) {
++            Custom.test(i);
++        }
++    }
++}
