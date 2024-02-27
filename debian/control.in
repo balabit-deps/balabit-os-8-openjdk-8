@@ -1,7 +1,8 @@
 Source: @basename@
 Section: java
 Priority: optional
-Maintainer: Java Maintenance <pkg-java-maintainers@lists.alioth.debian.org>
+Maintainer: Ubuntu Developers <ubuntu-devel-discuss@lists.ubuntu.com>
+XSBC-Original-Maintainer: Java Maintenance <pkg-java-maintainers@lists.alioth.debian.org>
 Uploaders: Thorsten Glaser <tg@mirbsd.de>
 Build-Depends: @bd_debhelper@ quilt, m4, lsb-release, zip, unzip,
   @bd_bootstrap@
@@ -12,7 +13,7 @@ Build-Depends: @bd_debhelper@ quilt, m4, lsb-release, zip, unzip,
   @bd_syslibs@ @bd_pulsejava@ @bd_systemtap@
   @bd_nss@ @bd_cross@
 Standards-Version: 4.6.2
-Homepage: http://openjdk.java.net/
+Homepage: https://openjdk.org/projects/jdk8u/
 VCS-git: https://evolvis.org/anonscm/git/alioth/openjdk-8.git -b master
 VCS-Browser: https://evolvis.org/plugins/scmgit/cgi-bin/gitweb.cgi?p=alioth/openjdk-8.git;a=shortlog;h=refs/heads/master
 

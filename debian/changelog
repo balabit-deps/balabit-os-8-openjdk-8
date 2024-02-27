@@ -1,8 +1,90 @@
-openjdk-8 (8u392-ga-1~20.04) focal-security; urgency=low
+openjdk-8 (8u402-ga-2ubuntu1~20.04) focal-security; urgency=medium
 
-  * Upload to Ubuntu 20.04.
+  * Upload to Ubuntu 20.04
+  * Includes fixes to the following CVEs:
+    - CVE-2024-20918
+    - CVE-2024-20919
+    - CVE-2024-20921
+    - CVE-2024-20926
+    - CVE-2024-20945
+    - CVE-2024-20952
+  * Includes the following Security fixes:
+    - JDK-8308204: Enhanced certificate processing
+    - JDK-8314284: Enhance Nashorn performance
+    - JDK-8314295: Enhance verification of verifier
+    - JDK-8314307: Improve loop handling
+    - JDK-8314468: Improve Compiler loops
+    - JDK-8316976: Improve signature handling
+    - JDK-8317547: Enhance TLS connection support
 
- -- Vladimir Petko <vladimir.petko@canonical.com>  Mon, 23 Oct 2023 21:35:09 +1300
+ -- Pushkar Kulkarni <pushkar.kulkarni@canonical.com>  Tue, 27 Feb 2024 12:29:04 +0530
+
+openjdk-8 (8u402-ga-2ubuntu1) noble; urgency=medium
+
+  * Fix installation issue on i386 (LP: #2053110):
+    - d/rules: build without atk bridge on i386 for Ubuntu versions that
+      do not have it.
+    - d/JB-jre-headless.postinst.in: check that /usr/share/binfmts exists
+      before trying to delete it.
+
+ -- Vladimir Petko <vladimir.petko@canonical.com>  Wed, 14 Feb 2024 19:58:48 +1300
+
+openjdk-8 (8u402-ga-2) unstable; urgency=low
+
+  * d/rules reliability fixes and extra checks
+  * Patch OpenJDK to pass errorlevel when configure fails
+  * Show config.log if present in such cases
+  * Do not install jexec alternative any more (unlike newer
+    versions it cannot run just any JAR), drop .jar binfmt
+    registration with it (LP#1775785); please use jarwrapper
+  * Restore M-A installability of focal/i386 package (LP#1916327)
+    by adding xenial, bionic, focal, jammy to the list of releases
+    built with the ATK bridge, but not enabling it by default;
+    keep jessie on, stretch and sid and mantic/noble off the list:
+    please report bugs for issues with the bridge, so sthibault
+    can find, debug, fix them
+
+ -- Thorsten Glaser <tg@mirbsd.de>  Wed, 31 Jan 2024 06:05:28 +0100
+
+openjdk-8 (8u402-ga-1) unstable; urgency=low
+
+  [ Leslie Zhai ]
+  * Add openjdk-8 zero support for loong64 (Closes: #1060236)
+
+  [ Thorsten Glaser ]
+  * Merge 8u392-ga-1+sparc64
+  * Drop alpha-float-const.diff, seems no longer needed
+  * Use config.{guess,sub} from autotools-dev for the JDK as well
+    as icedtea-sound; autoreconf the latter; use sh explicitly
+  * Enable pulse for alpha and loong64
+  * New upstream release
+  * CVEs
+    - CVE-2024-20918
+    - CVE-2024-20919
+    - CVE-2024-20921
+    - CVE-2024-20926
+    - CVE-2024-20945
+    - CVE-2024-20952
+  * Security fixes
+    - JDK-8308204: Enhanced certificate processing
+    - JDK-8314284: Enhance Nashorn performance
+    - JDK-8314295: Enhance verification of verifier
+    - JDK-8314307: Improve loop handling
+    - JDK-8314468: Improve Compiler loops
+    - JDK-8316976: Improve signature handling
+    - JDK-8317547: Enhance TLS connection support
+  * Other changes see
+    https://mail.openjdk.org/pipermail/jdk8u-dev/2024-January/017883.html
+  * Upload sponsored by QVEST ⮡ dıgıtal
+
+ -- Thorsten Glaser <tg@mirbsd.de>  Fri, 19 Jan 2024 00:30:27 +0100
+
+openjdk-8 (8u392-ga-1+sparc64) unreleased; urgency=medium
+
+  * Disable Hotspot on sparc64 as it is currently broken
+    (Closes: #1056570)
+
+ -- John Paul Adrian Glaubitz <glaubitz@physik.fu-berlin.de>  Thu, 23 Nov 2023 11:01:30 +0100
 
 openjdk-8 (8u392-ga-1) unstable; urgency=low
 

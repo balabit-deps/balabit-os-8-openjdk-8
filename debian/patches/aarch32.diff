@@ -44,7 +44,7 @@ Last-Update: 2023-01-29
        VAR_CPU_BITS=32
        VAR_CPU_ENDIAN=little
        ;;
-@@ -346,6 +346,8 @@ AC_DEFUN([PLATFORM_SETUP_LEGACY_VARS],
+@@ -352,6 +352,8 @@ AC_DEFUN([PLATFORM_SETUP_LEGACY_VARS],
    elif test "x$OPENJDK_TARGET_OS" != xmacosx && test "x$OPENJDK_TARGET_CPU" = xx86_64; then
      # On all platforms except MacOSX replace x86_64 with amd64.
      OPENJDK_TARGET_CPU_LEGACY="amd64"
@@ -53,7 +53,7 @@ Last-Update: 2023-01-29
    fi
    AC_SUBST(OPENJDK_TARGET_CPU_LEGACY)
  
-@@ -356,6 +358,8 @@ AC_DEFUN([PLATFORM_SETUP_LEGACY_VARS],
+@@ -362,6 +364,8 @@ AC_DEFUN([PLATFORM_SETUP_LEGACY_VARS],
      OPENJDK_TARGET_CPU_LEGACY_LIB="i386"
    elif test "x$OPENJDK_TARGET_CPU" = xx86_64; then
      OPENJDK_TARGET_CPU_LEGACY_LIB="amd64"
@@ -62,7 +62,7 @@ Last-Update: 2023-01-29
    fi
    AC_SUBST(OPENJDK_TARGET_CPU_LEGACY_LIB)
  
-@@ -389,6 +393,8 @@ AC_DEFUN([PLATFORM_SETUP_LEGACY_VARS],
+@@ -395,6 +399,8 @@ AC_DEFUN([PLATFORM_SETUP_LEGACY_VARS],
    elif test "x$OPENJDK_TARGET_OS" != xmacosx && test "x$OPENJDK_TARGET_CPU" = xx86_64; then
      # On all platforms except macosx, we replace x86_64 with amd64.
      OPENJDK_TARGET_CPU_OSARCH="amd64"
@@ -71,7 +71,7 @@ Last-Update: 2023-01-29
    fi
    AC_SUBST(OPENJDK_TARGET_CPU_OSARCH)
  
-@@ -398,6 +404,8 @@ AC_DEFUN([PLATFORM_SETUP_LEGACY_VARS],
+@@ -404,6 +410,8 @@ AC_DEFUN([PLATFORM_SETUP_LEGACY_VARS],
    elif test "x$OPENJDK_TARGET_OS" != xmacosx && test "x$OPENJDK_TARGET_CPU" = xx86_64; then
      # On all platforms except macosx, we replace x86_64 with amd64.
      OPENJDK_TARGET_CPU_JLI="amd64"

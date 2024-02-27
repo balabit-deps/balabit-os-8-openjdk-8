@@ -17,11 +17,11 @@ if [ "$1" = "remove" ] || [ "$1" = "deconfigure" ]; then
 	# try to remove and ignore the error
 	if [ -e /var/lib/binfmts/jar ]; then
 	    update-binfmts --package @basename@ \
-		--remove jar /usr/bin/jexec || true
+	      --remove jar /usr/bin/jexec 2>/dev/null || true
 	fi
     fi
-
-    update-alternatives --remove jexec $basedir/jre/lib/jexec
+    update-alternatives --remove jexec \
+      $basedir/jre/lib/jexec 2>/dev/null || true
 fi
 
 #DEBHELPER#

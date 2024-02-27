@@ -50,11 +50,11 @@ multiarch_dir = /$(DEB_HOST_MULTIARCH)
 
 hotspot_aarch32_archs = armhf
 
-hotspot_archs	= amd64 i386 arm64 ppc64 ppc64el sparc64 \
-	$(hotspot_aarch32_archs)
-jtreg_archs	= $(hotspot_archs) alpha armel armhf \
-		  ia64 mips mipsel mips64 mips64el powerpc \
-		  powerpcspe ppc64 ppc64el s390x sh4 x32
+hotspot_archs	= amd64 arm64 i386 ppc64 ppc64el \
+		  ${hotspot_aarch32_archs}
+jtreg_archs	= ${hotspot_archs} alpha armel \
+		  ia64 loong64 mips mipsel mips64 mips64el \
+		  powerpc powerpcspe ppc64 ppc64el s390x sh4 sparc64 x32
 # FIXME: use bootcycle builds for zero archs?
 bootcycle_build  = $(if $(filter $(DEB_HOST_ARCH), $(hotspot_archs)),yes)
 ifneq ($(DEB_HOST_ARCH),$(DEB_BUILD_ARCH))
@@ -63,7 +63,7 @@ endif
 
 # we know about:
 # wheezy jessie stretch buster bullseye bookworm trixie sid
-# precise trusty xenial bionic focal jammy (kinetic lunar mantic)
+# precise trusty xenial bionic focal jammy (kinetic lunar mantic) noble
 
 ifneq (,$(filter $(distrel),wheezy precise trusty))
   is_default = no
@@ -95,11 +95,10 @@ shortver	= 8
 is_release		=
 is_release		= yes
 gh_project		= jdk8u
-gh_tag			= jdk8u392-ga
+gh_tag			= jdk8u402-ga
 version_dash_buildnr	= $(subst ${gh_project},,${gh_tag})
-version_dash_buildnr	= 392-b08
-# patched to get up to b08 (${UPSTREAM_PATCHES})
-gh_tag_aarch32		= jdk8u392-b07-aarch32-20231002
+version_dash_buildnr	= 402-b06
+gh_tag_aarch32		= jdk8u402-ga-aarch32-20240118
 package_version		= $(subst jdk,,${gh_tag})
 ifneq ($(is_release),yes)
   package_version	:= $(subst -,~,$(package_version))
@@ -152,8 +151,8 @@ endif
 
 with_docs = $(if $(findstring nodoc, $(DEB_BUILD_OPTIONS)),,yes)
 
-arch_map	:= alpha=alpha arm=arm armel=arm armhf=arm arm64=aarch64 amd64=amd64 hppa=parisc i386=i586 m68k=m68k mips=mips mipsel=mipsel mips64=mips64 mips64el=mips64el powerpc=ppc powerpcspe=ppc ppc64=ppc64 ppc64el=ppc64le sparc=sparc sparc64=sparcv9 sh4=sh s390x=s390x ia64=ia64 x32=x32
-archdir_map	:= alpha=alpha arm=arm armel=arm armhf=arm arm64=aarch64 amd64=amd64 hppa=parisc i386=i386 m68k=m68k mips=mips mipsel=mipsel mips64=mips64 mips64el=mips64el powerpc=ppc powerpcspe=ppc ppc64=ppc64 ppc64el=ppc64le sparc=sparc sparc64=sparcv9 sh4=sh s390x=s390x ia64=ia64 x32=x32
+arch_map	:= alpha=alpha amd64=amd64 arm64=aarch64 arm=arm armel=arm armhf=arm hppa=parisc i386=i586 ia64=ia64 loong64=loongarch64 m68k=m68k mips=mips mipsel=mipsel mips64=mips64 mips64el=mips64el powerpc=ppc powerpcspe=ppc ppc64=ppc64 ppc64el=ppc64le s390x=s390x sh4=sh sparc64=sparcv9 sparc=sparc x32=x32
+archdir_map	:= alpha=alpha amd64=amd64 arm64=aarch64 arm=arm armel=arm armhf=arm hppa=parisc i386=i386 ia64=ia64 loong64=loongarch64 m68k=m68k mips=mips mipsel=mipsel mips64=mips64 mips64el=mips64el powerpc=ppc powerpcspe=ppc ppc64=ppc64 ppc64el=ppc64le s390x=s390x sh4=sh sparc64=sparcv9 sparc=sparc x32=x32
 
 jvmarch		:= $(strip $(patsubst $(DEB_HOST_ARCH_CPU)=%, %, \
 			$(filter $(DEB_HOST_ARCH_CPU)=%, $(arch_map))))
@@ -171,7 +170,7 @@ ifneq (,$(filter $(DEB_HOST_ARCH),$(hotspot_aarch32_archs)))
   hotspot_version = aarch32
 endif
 
-any_archs = alpha amd64 armel ${hotspot_aarch32_archs} arm64 i386 ia64 mips mipsel mips64 mips64el powerpc powerpcspe ppc64 ppc64el m68k sh4 sparc sparc64 s390x x32
+any_archs = alpha amd64 arm64 armel ${hotspot_aarch32_archs} i386 ia64 loong64 m68k mips mipsel mips64 mips64el powerpc powerpcspe ppc64 ppc64el s390x sh4 sparc sparc64 x32
 
 ifneq (,$(filter $(distrel),xenial))
   transitional_jamvm_pkg = yes
@@ -298,20 +297,20 @@ export OPT_CFLAGS_DEFAULT
 endif
 
 with_pulse = yes
-ifneq (,$(filter $(DEB_HOST_ARCH), alpha))
-  with_pulse =
-endif
 
 ifneq (,$(filter $(distrel),xenial))
   # TCK tests still failing
   with_bridge =
 else
   with_bridge = atk
-  ifeq ($(derivative),Ubuntu)
-    ifeq ($(DEB_HOST_ARCH),i386)
-      ifeq (,$(filter $(distrel),precise trusty xenial bionic))
-        with_bridge =
-      endif
+endif
+
+ifeq ($(derivative),Ubuntu)
+  ifeq ($(DEB_HOST_ARCH),i386)
+# disable bridge on focal, jammy and mantic until atk wrapper is introduced
+# in those releases on i386
+    ifneq (,$(filter $(distrel),focal jammy mantic))
+      with_bridge =
     endif
   endif
 endif
@@ -337,10 +336,9 @@ UPSTREAM_PATCHES =
 COMMON_PATCHES = \
 	autoconf-select.diff \
 	bootstrap-with-8.diff \
-	build-warnings.diff \
 	fix-encoding.diff \
+	catch-configure-errors.diff \
 	disable-werror.diff \
-	aarch64.diff \
 	hotspot-set-compiler.diff \
 	ppc64el.diff \
 	system-libjpeg.diff \
@@ -376,6 +374,11 @@ COMMON_PATCHES = \
 	jdk-841269-filechooser.patch \
 	jdk-i18n-pt_BR.diff \
 	hotspot-ia64.diff \
+	dnd-files.patch \
+	zero-x32.diff \
+	sparc-inline-conflict.diff \
+	zero-sh.diff \
+	loong64-backport-jdk-8270517-and-8315020.diff \
 
 ifeq ($(derivative),Debian)
   COMMON_PATCHES += \
@@ -388,30 +391,13 @@ else ifneq (,$(with_bridge))
     COMMON_PATCHES += java-access-bridge-security.patch
 endif
 
-COMMON_PATCHES += \
-	dnd-files.patch \
-	zero-x32.diff \
-	sparc-inline-conflict.diff \
-
-ifeq (,$(filter $(DEB_HOST_ARCH),$(hotspot_aarch32_archs)))
-  COMMON_PATCHES += \
-	zero-sh.diff
-endif
-
 ifeq ($(with_pulse),yes)
     COMMON_PATCHES += \
 	jdk-pulseaudio.diff
 endif
 
-ifneq (,$(filter $(DEB_HOST_ARCH), alpha))
-  # FIXME: Needed for non-bootstrap builds?
-  COMMON_PATCHES += \
-	alpha-float-const.diff
-endif
-
 # set LIBARCH/aarch32 to arm
 ifneq (,$(filter $(DEB_HOST_ARCH), $(hotspot_aarch32_archs)))
-  UPSTREAM_PATCHES += b07-to-b08-hotspot.diff
   COMMON_PATCHES += \
 	aarch32.diff
 endif
@@ -734,7 +720,7 @@ bd_ant = ant, ant-optional,
 
 bd_fastjar = fastjar (>= 2:0.96-0ubuntu2),
 ifeq ($(with_pulse),yes)
-  bd_pulsejava = libpulse-dev (>= 0.9.12) [!alpha],
+  bd_pulsejava = libpulse-dev (>= 0.9.12),
 endif
 ifeq ($(with_nss),yes)
   bd_nss = libnss3-dev (>= 2:3.26),
@@ -963,9 +949,10 @@ endif
 configure: stamps/configure
 stamps/configure: stamps/patch
 	-cat /etc/hosts
+	-cat /proc/cpuinfo
 
 	mkdir -p bin
-ifeq (,$(filter $(DEB_HOST_ARCH), alpha amd64 arm64 hppa mips64 mips64el ppc64 ppc64el s390x sparc64 x32))
+ifeq (,$(filter $(DEB_HOST_ARCH), alpha amd64 arm64 ia64 loong64 mips64 mips64el ppc64 ppc64el s390x sparc64 x32))
 	( \
 	  echo '#! /bin/sh'; \
 	  echo 'if [ -x /usr/bin/linux32 ]; then'; \
@@ -975,9 +962,9 @@ ifeq (,$(filter $(DEB_HOST_ARCH), alpha amd64 arm64 hppa mips64 mips64el ppc64 p
 	  echo 'fi'; \
 	) > bin/uname
 	chmod +x bin/uname
+endif
 	echo "UNAME checks"
 	uname -a
-endif
 	/bin/uname -a
 	lsb_release -a
 
@@ -985,20 +972,27 @@ endif
 
 	mkdir -p stamps
 	mkdir -p $(builddir)
+	cd ${srcdir}/common/autoconf/build-aux && \
+	    rm -f autoconf-config.* config.guess config.sub && \
+	    cp /usr/share/misc/config.guess /usr/share/misc/config.sub .
 	cd $(srcdir) && sh common/autoconf/autogen.sh
-	cd $(builddir) && $(EXTRA_BUILD_ENV) ../$(srcdir)/configure \
-		$(DEFAULT_CONFIGURE_ARGS) \
-		$(COMMON_CONFIGURE_ARGS)
-
+	cd $(builddir) && $(EXTRA_BUILD_ENV) sh ../$(srcdir)/configure \
+	    ${DEFAULT_CONFIGURE_ARGS} ${COMMON_CONFIGURE_ARGS} || { \
+		tail -v -n +0 config.log || :; \
+		echo >&2 'E: configure for $@ failed'; \
+		exit 1; \
+	}
 	touch $@
 
 stamps/zero-configure: stamps/build stamps/patch
 	mkdir -p stamps
 	mkdir -p $(zbuilddir)
-	cd $(zbuilddir) && $(EXTRA_BUILD_ENV) ../$(srcdir)/configure \
-		$(ZERO_CONFIGURE_ARGS) \
-		$(COMMON_CONFIGURE_ARGS)
-
+	cd $(zbuilddir) && $(EXTRA_BUILD_ENV) sh ../$(srcdir)/configure \
+	    ${ZERO_CONFIGURE_ARGS} ${COMMON_CONFIGURE_ARGS} || { \
+		tail -v -n +0 config.log || :; \
+		echo >&2 'E: configure for $@ failed'; \
+		exit 1; \
+	}
 	touch $@
 
 stamps/sound-configure: stamps/build
@@ -1007,18 +1001,23 @@ stamps/sound-configure: stamps/build
 	mv $$(tar tf icedtea-sound.tar.xz | head -1 | sed 's,/.*,,') \
 	  icedtea-sound
 	patch -p1 < debian/patches/icedtea-sound.diff
-	if [ -x icedtea-sound/autogen.sh ]; then \
-	  cd icedtea-sound && ./autogen.sh; \
-	fi
-	cd icedtea-sound && ./configure \
-		--build=$(DEB_BUILD_GNU_TYPE) \
-		--host=$(DEB_HOST_GNU_TYPE) \
-		--disable-maintainer-mode \
-		--with-jdk-home=$(BUILDJDK_HOME) \
-		CPPFLAGS="$(EXTRA_CPPFLAGS_IT)" \
-		CFLAGS="$(EXTRA_CFLAGS_IT)" \
-		CXXFLAGS="$(EXTRA_CXXFLAGS_IT)" \
-		LDFLAGS="$(EXTRA_LDFLAGS_IT)"
+	cd icedtea-sound && \
+	    rm -f config.guess config.sub configure && \
+	    cp /usr/share/misc/config.guess /usr/share/misc/config.sub .
+	cd icedtea-sound && autoreconf -f -i -v
+	cd icedtea-sound && sh configure \
+	    --build=$(DEB_BUILD_GNU_TYPE) \
+	    --host=$(DEB_HOST_GNU_TYPE) \
+	    --disable-maintainer-mode \
+	    --with-jdk-home=$(BUILDJDK_HOME) \
+	    CPPFLAGS="$(EXTRA_CPPFLAGS_IT)" \
+	    CFLAGS="$(EXTRA_CFLAGS_IT)" \
+	    CXXFLAGS="$(EXTRA_CXXFLAGS_IT)" \
+	    LDFLAGS="$(EXTRA_LDFLAGS_IT)" || { \
+		tail -v -n +0 config.log || :; \
+		echo >&2 'E: configure for $@ failed'; \
+		exit 1; \
+	}
 	touch $@
 
 stamps/sound-build: stamps/sound-configure
@@ -1030,7 +1029,6 @@ stamps/unpack:
 	rm -rf $(srcdir)
 	mkdir -p $(srcdir)
 	tar -xf root.tar.xz --strip-components=1 -C $(srcdir)
-	chmod +x $(srcdir)/configure
 	for tb in corba jaxp jaxws langtools hotspot jdk nashorn; do \
 	  tar -C $(srcdir) -x -f $$tb.tar.xz; \
 	done
@@ -1051,9 +1049,7 @@ endif
 
 patch: stamps/patch
 stamps/series: stamps/unpack
-	for i in $(DEFAULT_PATCHES); do \
-	  echo $$i; \
-	done > $(srcdir)/series
+	printf '%s\n' ${DEFAULT_PATCHES} >${srcdir}/series
 	@:>$@
 
 stamps/patch: stamps/series
@@ -1063,7 +1059,7 @@ stamps/patch: stamps/series
 	  echo ""; echo "Patches applied in this version:"; \
 	  for i in $$(egrep -v '^#|^ *$$' $(srcdir)/series); do \
 	    echo ""; echo "$$i:"; \
-	    sed -n 's/^# *DP: */  /p' debian/patches/$$i; \
+	    sed -n -E 's/^(# *DP|Description): */  /p' debian/patches/$$i; \
 	  done \
 	) > stamps/pxx
 	mv stamps/pxx $@
@@ -1112,7 +1108,7 @@ build: pre-build $(build_stamps)
 	rm -f buildwatch.pid
 
 stamps/build: stamps/configure
-ifneq (,$(filter $(DEB_HOST_ARCH), alpha armel armhf ia64 m68k mips mipsel mips64 mips64el powerpc powerpcspe s390x sh4 sparc sparc64))
+ifneq (,$(filter $(DEB_HOST_ARCH), alpha armel armhf ia64 loong64 m68k mips mipsel mips64 mips64el powerpc powerpcspe s390x sh4 sparc sparc64))
 	sh -c 'sh debian/buildwatch.sh $(CURDIR)/$(builddir) &'
 endif
 	if $(EXTRA_BUILD_ENV) $(MAKE) -C $(builddir) $(build_target); then \
@@ -1337,7 +1333,7 @@ endif
 	done
 
 ifeq ($(with_bridge),atk)
-  ifneq (,$(filter $(distrel),wheezy jessie precise trusty))
+  ifneq (,$(filter $(distrel),wheezy jessie precise trusty xenial bionic focal jammy))
 	cp -p debian/accessibility-atk.properties.disabled \
 		$(d)/$(basedir)/jre/lib/accessibility.properties
   else
@@ -1607,8 +1603,7 @@ endif
 # 'make Emacs Makefile mode happy
 
 	dh_installdirs -p$(p_jrehl) \
-		usr/share/doc/$(p_jrehl) \
-		usr/share/binfmts
+		usr/share/doc/$(p_jrehl)
 
 	dh_installdirs -p$(p_jre) \
 		usr/share/applications \
@@ -1745,12 +1740,6 @@ endif
 	    echo "jdk $$i /$(basedir)/bin/$$i"; \
 	  done; \
 	) > $(d_jrehl)/$(TOP)/.$(jdiralias).jinfo
-
-	( \
-	  echo 'package $(basename)'; \
-	  echo 'interpreter /usr/bin/jexec'; \
-	  echo 'magic PK\x03\x04'; \
-	) > $(d_jrehl)/$(basedir)/jre/lib/jar.binfmt
 
 	: # another jvm symlink
 	ln -sf $(jdirname) $(d_jrehl)/usr/lib/jvm/$(jdiralias)
@@ -2032,7 +2021,7 @@ get-orig: fetch-orig munge-orig dfsg-orig
 debian/refresh:
 	mksh debian/refresher.sh : \
 	    $(if ${hotspot_aarch32_archs}, armhf : ) \
-	    alpha . amd64 :
+	    amd64 :
 
 binary: binary-arch binary-indep
 .PHONY: build build-arch build-indep clean binary-indep binary-arch binary install packaging-files

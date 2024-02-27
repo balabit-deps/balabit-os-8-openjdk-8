@@ -13,6 +13,17 @@ jre_tools='@jre_hl_tools@'
 
 case "$1" in
 configure)
+    if test -z "$2" || dpkg --compare-versions "$2" lt '8u402-ga-2~'; then
+	# try to remove and ignore the error
+	update-binfmts --package @basename@ \
+	  --remove jar /usr/bin/jexec 2>/dev/null || true
+	update-alternatives --remove jexec \
+	  $basedir/jre/lib/jexec 2>/dev/null || true
+	if [ -e /usr/share/binfmts ]; then
+	    rmdir --ignore-fail-on-non-empty /usr/share/binfmts
+	fi
+    fi
+
     # fail early.  java currently uses tricks to find its own shared
     # libraries depending on the path of the binary. Will be changed
     # in OpenJDK7
@@ -80,19 +91,7 @@ configure)
             $priority \
 	    $slave1 $slave2
     done
-    update-alternatives \
-	--install /usr/bin/jexec jexec $basedir/jre/lib/jexec $priority \
-	--slave \
-	    /usr/share/binfmts/jar \
-	    jexec-binfmt \
-	    $basedir/jre/lib/jar.binfmt
     fi # update alternatives
-
-    # register binfmt; ignore errors, the alternative may already be
-    # registered by another JRE.
-    if which update-binfmts >/dev/null && [ -r /usr/share/binfmts/jar ]; then
-        update-binfmts --package @basename@ --import jar || true
-    fi
 
     # activate class data sharing
     case @archdir@ in i386|sparc)

@@ -2,7 +2,7 @@
 
 --- a/jdk/make/CompileLaunchers.gmk
 +++ b/jdk/make/CompileLaunchers.gmk
-@@ -464,7 +464,7 @@ endif
+@@ -471,7 +471,7 @@ endif
  # binary (at least on linux) which causes the size to differ between old and new build.
  ifeq ($(USE_EXTERNAL_LIBZ), true)
    UNPACKEXE_CFLAGS := -DSYSTEM_ZLIB
@@ -11,7 +11,7 @@
  else
    UNPACKEXE_CFLAGS := -I$(JDK_TOPDIR)/src/share/native/java/util/zip/zlib
    UNPACKEXE_ZIPOBJS := $(JDK_OUTPUTDIR)/objs/libzip/zcrc32$(OBJ_SUFFIX) \
-@@ -524,9 +524,9 @@ $(eval $(call SetupNativeCompilation,BUI
+@@ -531,9 +531,9 @@ $(eval $(call SetupNativeCompilation,BUI
      LDFLAGS_posix := $(LDFLAGS_JDKEXE) $(LDFLAGS_CXX_JDK) \
          $(call SET_SHARED_LIBRARY_NAME,$(LIBRARY_PREFIX)unpack$(SHARED_LIBRARY_SUFFIX)) \
          $(call SET_SHARED_LIBRARY_ORIGIN), \

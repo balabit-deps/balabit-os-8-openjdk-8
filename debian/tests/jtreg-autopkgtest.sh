@@ -36,7 +36,7 @@ if [ ! -x "${JDK_TO_TEST}/bin/java" ]; then
 fi
 
 # restrict the tests to a few archs (set from debian/rules)
-if ! echo "${host_arch}" | grep -qE "^($(echo amd64 i386 arm64 ppc64 ppc64el sparc64 armhf alpha armel armhf ia64 mips mipsel mips64 mips64el powerpc powerpcspe ppc64 ppc64el s390x sh4 x32 | tr ' ' '|'))$"; then
+if ! echo "${host_arch}" | grep -qE "^($(echo amd64 arm64 i386 ppc64 ppc64el armhf alpha armel ia64 loong64 mips mipsel mips64 mips64el powerpc powerpcspe ppc64 ppc64el s390x sh4 sparc64 x32 | tr ' ' '|'))$"; then
   echo "Error: ${host_arch} is not on the jtreg_archs list, ignoring it."
   exit 77
 fi
