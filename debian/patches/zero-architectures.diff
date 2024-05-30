@@ -94,16 +94,14 @@
      s390)
        VAR_CPU=s390
        VAR_CPU_ARCH=s390
-@@ -375,6 +435,12 @@ AC_DEFUN([PLATFORM_SETUP_LEGACY_VARS],
+@@ -381,6 +441,10 @@ AC_DEFUN([PLATFORM_SETUP_LEGACY_VARS],
  
    # ZERO_ARCHDEF is used to enable architecture-specific code
    case "${OPENJDK_TARGET_CPU}" in
 +    alpha*)  ZERO_ARCHDEF=ALPHA ;;
-+    ia64)  ZERO_ARCHDEF=IA64 ;;
-+    m68k)  ZERO_ARCHDEF=M68K ;;
-+    mips|mipsn32|mips64)  ZERO_ARCHDEF=MIPS ;;
++    mips|mipsn32|mips64)        ZERO_ARCHDEF=MIPS ;;
 +    mipsel|mipsn32el|mips64el)  ZERO_ARCHDEF=MIPSEL ;;
-+    sh*)   ZERO_ARCHDEF=ZERO_SH  ;;
++    sh*)     ZERO_ARCHDEF=ZERO_SH ;;
      ppc)     ZERO_ARCHDEF=PPC32 ;;
      ppc64)   ZERO_ARCHDEF=PPC64 ;;
      s390*)   ZERO_ARCHDEF=S390  ;;

@@ -1,0 +1,21 @@
+Description: do not throw exception when assistive technologies are not found
+ In multiarch installation we may co-install amd64 and i386 versions
+ of openjdk-8 package. i386 version for Ubuntu does not build with
+ ATK bridge for focal, jammy and mantic.
+ Replace the exception with the warning.
+Author: Vladimir Petko <vladimir.petko@canonical.com>
+Bug-Ubuntu: https://bugs.launchpad.net/ubuntu/+source/openjdk-8/+bug/1916327
+Bug-Debian: https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1064191
+Forwarded: not-needed
+
+--- a/jdk/src/share/classes/java/awt/Toolkit.java
++++ b/jdk/src/share/classes/java/awt/Toolkit.java
+@@ -804,7 +804,7 @@ public abstract class Toolkit {
+                     }
+                     clazz.newInstance();
+                 } catch (ClassNotFoundException e) {
+-                    throw new AWTError("Assistive Technology not found: "
++                    System.err.println("Assistive Technology not found: "
+                             + atName);
+                 } catch (InstantiationException e) {
+                     throw new AWTError("Could not instantiate Assistive"

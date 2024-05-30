@@ -8,6 +8,8 @@ unexport LANG
 export LC_ALL=C
 unexport LANGUAGE
 
+NULL :=
+
 dh_version := $(shell dpkg-query -f '$${Version}\n' -W debhelper | sed -n 's/^\(.\).*/\1/p')
 
 # using brace expansion and substring replacements (${var:0:2}).
@@ -63,7 +65,7 @@ endif
 
 # we know about:
 # wheezy jessie stretch buster bullseye bookworm trixie sid
-# precise trusty xenial bionic focal jammy (kinetic lunar mantic) noble
+# precise trusty xenial bionic focal jammy (mantic) noble
 
 ifneq (,$(filter $(distrel),wheezy precise trusty))
   is_default = no
@@ -95,10 +97,10 @@ shortver	= 8
 is_release		=
 is_release		= yes
 gh_project		= jdk8u
-gh_tag			= jdk8u402-ga
+gh_tag			= jdk8u412-ga
 version_dash_buildnr	= $(subst ${gh_project},,${gh_tag})
-version_dash_buildnr	= 402-b06
-gh_tag_aarch32		= jdk8u402-ga-aarch32-20240118
+version_dash_buildnr	= 412-b08
+gh_tag_aarch32		= jdk8u412-ga-aarch32-20240419
 package_version		= $(subst jdk,,${gh_tag})
 ifneq ($(is_release),yes)
   package_version	:= $(subst -,~,$(package_version))
@@ -140,12 +142,20 @@ ifneq (,$(filter parallel=%,$(subst $(COMMA), ,$(DEB_BUILD_OPTIONS))))
   NJOBS = $(subst parallel=,,$(filter parallel=%,$(subst $(COMMA), ,$(DEB_BUILD_OPTIONS))))
 endif
 
+nocheck_profile = ${NULL} <!nocheck>
 with_check = $(if $(findstring nocheck, $(DEB_BUILD_OPTIONS)),,yes)
 ifeq (,$(filter $(DEB_HOST_ARCH),$(hotspot_archs)))
   with_check = disabled running check for Zero arch $(DEB_HOST_ARCH)
 endif
 ifneq (,$(filter $(distrel),precise wheezy))
+  nocheck_profile =
   with_check = disabled running check on $(distrel)
+endif
+ifneq (,$(filter ${distrel},noble))
+  ifeq (${DEB_HOST_ARCH},i386)
+    with_check = disabled running check on ${distrel}/${DEB_HOST_ARCH}
+  endif
+  nocheck_profile = ${NULL} [!i386] <!nocheck>
 endif
 #with_check = disabled for this build
 
@@ -264,7 +274,7 @@ else ifneq (,$(filter $(distrel),bullseye))
   gccver=10
 else ifneq (,$(filter $(distrel),jammy))
   gccver=11
-else ifneq (,$(filter $(distrel),bookworm kinetic lunar))
+else ifneq (,$(filter $(distrel),bookworm))
   gccver=12
 else
   gccver=13
@@ -305,12 +315,11 @@ else
   with_bridge = atk
 endif
 
-ifeq ($(derivative),Ubuntu)
-  ifeq ($(DEB_HOST_ARCH),i386)
-# disable bridge on focal, jammy and mantic until atk wrapper is introduced
-# in those releases on i386
-    ifneq (,$(filter $(distrel),focal jammy mantic))
-      with_bridge =
+ifeq (${derivative},Ubuntu)
+  ifeq (${DEB_HOST_ARCH},i386)
+    ifneq (,$(filter ${distrel},focal jammy mantic))
+      # libatk-wrapper-java-jni:i386 is missing in these releases
+      with_bridge = m-a-fake
     endif
   endif
 endif
@@ -378,15 +387,18 @@ COMMON_PATCHES = \
 	zero-x32.diff \
 	sparc-inline-conflict.diff \
 	zero-sh.diff \
-	loong64-backport-jdk-8270517-and-8315020.diff \
+	t64-dlsyms.diff \
 
 ifeq ($(derivative),Debian)
   COMMON_PATCHES += \
 	hotspot-disable-exec-shield-workaround.patch
 endif
 
-ifeq ($(with_bridge),atk)
+ifneq (,$(filter ${with_bridge},atk m-a-fake))
     COMMON_PATCHES += atk-wrapper-security.patch
+  ifeq (${with_bridge},m-a-fake)
+    COMMON_PATCHES += do-not-throw-when-assistive-technology-not-found.patch
+  endif
 else ifneq (,$(with_bridge))
     COMMON_PATCHES += java-access-bridge-security.patch
 endif
@@ -406,12 +418,6 @@ DEFAULT_PATCHES = \
 	${UPSTREAM_PATCHES} \
 	$(COMMON_PATCHES) \
 	hotspot-libpath-$(hotspot_version).diff
-
-# for additional zero builds
-ZERO_PATCHES = \
-	${UPSTREAM_PATCHES} \
-	$(COMMON_PATCHES) \
-	hotspot-libpath-default.diff
 
 CONFIGURE_ARGS =
 
@@ -618,8 +624,13 @@ ifneq (,$(filter $(distrel),precise))
 else
   bd_autotools = autoconf (>= 2.69), automake,
 endif
+ifneq (,$(filter ${distrel},wheezy jessie stretch buster bullseye precise trusty xenial bionic focal jammy))
+  bd_autotools += pkg-config,
+else
+  bd_autotools += pkgconf,
+endif
 bd_bootstrap += \
-	openjdk-8-jdk,
+	openjdk-8-jdk-headless,
 #	openjdk-8-jdk | openjdk-7-jdk,
 ifeq (,$(filter $(distrel),wheezy jessie precise trusty))
   bd_cross += \
@@ -633,21 +644,9 @@ bd_check = \
 	x11-xkb-utils@nocheck@, dbus-x11@nocheck@, \
 	openjdk-8-jre-headless@nocheck@ | default-jre-headless (>= 2:1.8)@nocheck@,
 dtd_check =
-ifeq ($(derivative),Ubuntu)
-# from 8u372-ga-1ubuntu1
-  bd_check += jtreg@nocheck@,
-  dtd_check += jtreg,
-else
-# once available in ELTS: better than jtreg 4.x
-#ifneq (,$(filter $(distrel),jessie stretch))
-#  bd_check += jtreg6@nocheck@,
-#  dtd_check += jtreg6,
-#else
-# stick to jtreg 5.x which openjdk-8 really wants
-  bd_check += jtreg@nocheck@,
-  dtd_check += jtreg,
-#endif
-endif
+# at least 4.2 b13 is now required, from stretch-backports
+  bd_check += jtreg (>> 4.2-b13-1~)@nocheck@,
+  dtd_check += jtreg (>> 4.2-b13-1~),
 ifeq (,$(filter $(distrel),wheezy jessie stretch precise trusty xenial))
   bd_check += libasmtools-java@nocheck@,
   dtd_check += libasmtools-java,
@@ -712,10 +711,6 @@ bd_zero = \
 bd_zero = \
 	$(pkg_ffidev),
 
-ifeq (,$(filter $(distrel),precise wheezy))
-  nocheck_profile = <!nocheck>
-endif
-
 bd_ant = ant, ant-optional,
 
 bd_fastjar = fastjar (>= 2:0.96-0ubuntu2),
@@ -729,8 +724,15 @@ ifeq (,$(filter $(distrel),wheezy precise trusty))
   bd_systemtap = systemtap-sdt-dev,
 endif
 
-dlopen_hl_depends = \
-	libcups2, liblcms2-2,
+dlopen_hl_depends =
+ifeq (,$(filter ${distrel},wheezy jessie stretch buster bullseye bookworm precise trusty xenial bionic focal jammy mantic))
+  dlopen_hl_depends += libcups2t64,
+  bd_syslibs += libcups2t64,
+else
+  dlopen_hl_depends += libcups2,
+  bd_syslibs += libcups2,
+endif
+dlopen_hl_depends += liblcms2-2,
 # see above (libjpeg-dev)
 ifeq ($(derivative),Ubuntu)
   dlopen_hl_depends += libjpeg-turbo8,
@@ -744,14 +746,26 @@ dlopen_hl_depends += libfontconfig1,
 ifneq ($(with_nss),no)
   dlopen_hl_depends += libnss3 (>= 2:3.26),
 endif
+
 dlopen_hl_recommends =
-dlopen_jre_depends = \
-	libglib2.0-0 (>= 2.24), libxrandr2, libxinerama1, libgl1-mesa-glx | libgl1,
-#ifneq (,$(filter $(distrel),wheezy xenial artful))
+
+dlopen_jre_depends =
+ifeq (,$(filter ${distrel},wheezy jessie stretch buster bullseye bookworm precise trusty xenial bionic focal jammy mantic))
+  dlopen_jre_depends += libglib2.0-0t64,
+  bd_syslibs += libglib2.0-0t64,
+else
+  dlopen_jre_depends += libglib2.0-0 (>= 2.24),
+  bd_syslibs += libglib2.0-0 (>= 2.24),
+endif
+dlopen_jre_depends += libxrandr2, libxinerama1, libgl1-mesa-glx | libgl1,
+ifeq (,$(filter ${distrel},wheezy jessie stretch buster bullseye bookworm precise trusty xenial bionic focal jammy mantic))
+  dlopen_jre_depends += libgtk2.0-0t64,
+  bd_syslibs += libgtk2.0-0t64,
+else
   dlopen_jre_depends += libgtk2.0-0 (>= 2.14),
-#else
-#  dlopen_jre_depends += libgtk-3-0,
-#endif
+  bd_syslibs += libgtk2.0-0 (>= 2.14),
+ #dlopen_jre_depends += libgtk-3-0,
+endif
 
 dlopen_jre_recommends =
 
@@ -814,6 +828,8 @@ ifeq ($(with_bridge),atk)
   else
     control_vars += '-Vdep:bridge=libatk-wrapper-java-jni (>= 0.33.3-9~)'
   endif
+else ifeq (${with_bridge},m-a-fake)
+  control_vars += '-Vdep:bridge='
 else ifneq (,$(with_bridge))
   control_vars += '-Vdep:bridge=libaccess-bridge-java-jni (>= 1.26.2-6)'
 endif
@@ -1332,7 +1348,7 @@ endif
 	  mv $(d)/$(basedir)/jre/lib/$$i.template $(d)/$(etcdir)/$$i; \
 	done
 
-ifeq ($(with_bridge),atk)
+ifneq (,$(filter ${with_bridge},atk m-a-fake))
   ifneq (,$(filter $(distrel),wheezy jessie precise trusty xenial bionic focal jammy))
 	cp -p debian/accessibility-atk.properties.disabled \
 		$(d)/$(basedir)/jre/lib/accessibility.properties
@@ -1683,7 +1699,7 @@ endif
 	  echo usr/share/doc/$(p_jrehl) usr/share/doc/$(p_dbg); \
 	) > $(d_dbg).links
 
-ifeq ($(with_bridge),atk)
+ifneq (,$(filter ${with_bridge},atk m-a-fake))
 	: # create links for the atk wrapper
 	echo "usr/share/java/java-atk-wrapper.jar $(basedir)/jre/lib/ext/java-atk-wrapper.jar" \
 	    >> $(d_jre).links
@@ -1729,7 +1745,6 @@ endif
 	  for i in $(jre_hl_tools_alt); do \
 	    echo "hl $$i /$(basedir)/jre/bin/$$i"; \
 	  done; \
-	  echo "hl jexec /$(basedir)/jre/lib/jexec"; \
 	  for i in $(jre_tools_alt); do \
 	    echo "jre $$i /$(basedir)/jre/bin/$$i"; \
 	  done; \
@@ -1907,9 +1922,11 @@ endif
 gh_url			= https://github.com/openjdk/${gh_project}/archive/refs/tags/${gh_tag}.tar.gz
 gh_project_aarch32	= aarch32-port-jdk8u
 gh_url_aarch32		= https://github.com/openjdk/${gh_project_aarch32}/archive/refs/tags/${gh_tag_aarch32}.tar.gz
-origdir			= ../openjdk-8-$(package_version).orig
-orig_tarball		= ../openjdk-8_$(package_version).orig.tar.gz
-source_date		:= $(shell dpkg-parsechangelog | sed -n '/^Date: /{s///p;q;}')
+gh_tag_api		= https://api.github.com/repos/openjdk/${gh_project}/git/ref/tags/${gh_tag}
+gh_tag_api_aarch32	= https://api.github.com/repos/openjdk/${gh_project_aarch32}/git/ref/tags/${gh_tag_aarch32}
+origdir_b		= openjdk-8-${package_version}.orig
+orig_tarball_b		= openjdk-8_${package_version}.orig.tar
+origdir			= ../${origdir_b}
 do_fetch		= test -s ${origdir}/$(1) || \
 			    if wget -O ${origdir}/$(1)~ $(2); then \
 				mv ${origdir}/$(1)~ ${origdir}/$(1); \
@@ -1919,8 +1936,34 @@ do_fetch		= test -s ${origdir}/$(1) || \
 			    fi
 fetch-orig:
 	mkdir -p $(origdir)
+	$(call do_fetch,ti-any-1,${gh_tag_api})
+	: check API result; \
+	    case $$(jq -r '.object | [.type, .url] | join("!")' \
+	    <${origdir}/ti-any-1) in \
+	    ('tag!https://'*|'commit!https://'*) : ok ;; \
+	    (*) exit 1 ;; esac
+	$(call do_fetch,ti-any-2,"$$(jq -r .object.url <${origdir}/ti-any-1)")
+	: check API result; \
+	    ts=$$(jq -r '.tagger.date // .committer.date' <${origdir}/ti-any-2); \
+	    case $$ts in \
+	    (20[0-9][0-9]-[0-1][0-9]-[0-3][0-9]T[0-2][0-9]:[0-5][0-9]:[0-6][0-9]Z) \
+		: ok; echo $$ts >${origdir}/ts-any ;; \
+	    (*) exit 1 ;; esac
 	$(call do_fetch,jdk-any.tar.gz,${gh_url})
 ifneq (,$(hotspot_aarch32_archs))
+	$(call do_fetch,ti-aarch32-1,${gh_tag_api_aarch32})
+	: check API result; \
+	    case $$(jq -r '.object | [.type, .url] | join("!")' \
+	    <${origdir}/ti-aarch32-1) in \
+	    ('tag!https://'*|'commit!https://'*) : ok ;; \
+	    (*) exit 1 ;; esac
+	$(call do_fetch,ti-aarch32-2,"$$(jq -r .object.url <${origdir}/ti-aarch32-1)")
+	: check API result; \
+	    ts=$$(jq -r '.tagger.date // .committer.date' <${origdir}/ti-aarch32-2); \
+	    case $$ts in \
+	    (20[0-9][0-9]-[0-1][0-9]-[0-3][0-9]T[0-2][0-9]:[0-5][0-9]:[0-6][0-9]Z) \
+		: ok; echo $$ts >${origdir}/ts-aarch32 ;; \
+	    (*) exit 1 ;; esac
 	$(call do_fetch,jdk-aarch32.tar.gz,${gh_url_aarch32})
 endif
 	$(call do_fetch,icedtea-sound.tar.xz, \
@@ -1975,47 +2018,67 @@ endif
 	ls -l variant-*.diff
 	: "also DO NOT commit *or* upload them!"
 
-gtar_reproducible=tar --clamp-mtime --mtime="$(source_date)" \
-	--sort=name --owner=0 --group=0 --numeric-owner --format=ustar
-
 dfsg-orig:
 	: # remove JSON license from THIRD_PARTY_README; no files shipped
 	set -ex; \
 	for repo in \
-	  root corba jaxp jaxws langtools hotspot jdk nashorn \
-	  $(if $(hotspot_aarch32_archs), hotspot-aarch32); \
-	do \
-	  [ -f $(origdir)/$$repo.tar.gz ] || continue; \
-	  mkdir -p $$repo; \
-	  tar -xzf $(origdir)/$$repo.tar.gz --strip-components=1 -C $$repo; \
-	  find $$repo -type d -print0 | xargs -0 chmod 755; \
-	  find $$repo -maxdepth 2 -name THIRD_PARTY_README; \
-	  for f in $$(find $$repo -maxdepth 2 -name THIRD_PARTY_README); do \
-	    awk '/^%% This notice is provided with respect to JSON/ { skip=1 } skip == 0 {print} /^----------/ { skip = 0} ' $$f > $$f.new; \
-	    diff -u $$f $$f.new || true; \
-	    mv $$f.new $$f; \
-	  done; \
-	  case $$repo in jdk) \
-	    rm -v -rf $$repo/src/share/native/java/util/zip/zlib*; \
-	    find $$repo/src/share/native/sun/awt/image/jpeg \
-	      ! -name imageioJPEG.c ! -name jpegdecoder.c ! -name jinclude.h \
-	      -type f -print -delete; \
-	    rm -v -rf $$repo/src/share/native/sun/awt/giflib; \
-	    rm -v -rf $$repo/src/share/native/sun/awt/libpng; \
-	    rm -v -f $$repo/src/share/native/sun/java2d/cmm/lcms/cms*.c; \
-	    rm -v -f $$repo/src/share/native/sun/java2d/cmm/lcms/lcms2*.h; \
-	    rm -v -rf $$repo/src/solaris/native/sun/security/smartcardio/MUSCLE; \
-	  esac; \
-	  find $$repo -perm /111 -print0 | xargs -0 chmod 755; \
-	  find $$repo '!' -perm /111 -print0 | xargs -0 chmod 644; \
-	  ${gtar_reproducible} -cJf $(origdir)/$$repo.tar.xz $$repo; \
-	  rm -rf $$repo; \
-	  rm -f $(origdir)/$$repo.tar.gz; \
+	    jdk hotspot $(if ${hotspot_aarch32_archs}, hotspot-aarch32) \
+	    nashorn jaxp jaxws langtools corba root; do \
+		case $$repo in \
+		(*aarch32*) tsname=ts-aarch32 ;; \
+		(*) tsname=ts-any ;; \
+		esac; \
+		test -f ${origdir}/$$repo.tar.gz || continue; \
+		mkdir -p $$repo; \
+		tar -xzf ${origdir}/$$repo.tar.gz --strip-components=1 -C $$repo; \
+		find $$repo -type d -print0 | xargs -0 chmod 755; \
+		find $$repo -maxdepth 2 -name THIRD_PARTY_README; \
+		for f in $$(find $$repo -maxdepth 2 -name THIRD_PARTY_README); do \
+			awk '/^%% This notice is provided with respect to JSON/ { skip=1 } skip == 0 {print} /^----------/ { skip = 0} ' $$f >$$f.new; \
+			diff -u $$f $$f.new || true; \
+			mv $$f.new $$f; \
+		done; \
+		case $$repo in \
+		(jdk) \
+			rm -v -rf $$repo/src/share/native/java/util/zip/zlib*; \
+			find $$repo/src/share/native/sun/awt/image/jpeg \
+			    ! -name imageioJPEG.c ! -name jpegdecoder.c ! -name jinclude.h \
+			    -type f -print -delete; \
+			rm -v -rf $$repo/src/share/native/sun/awt/giflib; \
+			rm -v -rf $$repo/src/share/native/sun/awt/libpng; \
+			rm -v -f $$repo/src/share/native/sun/java2d/cmm/lcms/cms*.c; \
+			rm -v -f $$repo/src/share/native/sun/java2d/cmm/lcms/lcms2*.h; \
+			rm -v -rf $$repo/src/solaris/native/sun/security/smartcardio/MUSCLE; \
+		esac; \
+		find $$repo -perm /111 -print0 | xargs -0 chmod 755; \
+		find $$repo '!' -perm /111 -print0 | xargs -0 chmod 644; \
+		( \
+			ts=$$(cat ${origdir}/$$tsname); \
+			tar -cf ${origdir}/$$repo.tar -Hustar -b1 \
+			    --mtime="$$ts" --sort=name \
+			    --owner=0 --group=0 --numeric-owner $$repo; \
+			xz -e -C crc32 ${origdir}/$$repo.tar; \
+			touch -d "$$ts" ${origdir}/$$repo.tar.xz; \
+			rm -rf $$repo ${origdir}/$$repo.tar.gz; \
+		) & \
 	done; \
+	wait; \
+	for x in ${origdir}/*.tar.gz; do \
+		if test -e "$$x"; then \
+			ls -l ${origdir}; \
+			exit 1; \
+		fi; \
+	done; \
+	rm ${origdir}/t[is]-*; \
 	find $(origdir) -perm /111 -print0 | xargs -0 chmod 755; \
 	find $(origdir) '!' -perm /111 -print0 | xargs -0 chmod 644; \
-	${gtar_reproducible} -cf - -C .. $$(basename $(origdir)) | \
-	    gzip -n9 >$(orig_tarball)
+	cd ..; \
+	tar -cf ${orig_tarball_b} -Hustar -b1 \
+	    --sort=name \
+	    --owner=0 --group=0 --numeric-owner \
+	    ${origdir_b}/*; \
+	gzip -n9 ${orig_tarball_b}
+
 get-orig: fetch-orig munge-orig dfsg-orig
 
 debian/refresh:
@@ -2025,4 +2088,4 @@ debian/refresh:
 
 binary: binary-arch binary-indep
 .PHONY: build build-arch build-indep clean binary-indep binary-arch binary install packaging-files
-.PHONY: get-orig fetch-orig munge-orig dfsg-orig debian/refresh
+.PHONY: get-orig fetch-orig munge-orig dfsg-orig debian/refresh gen-autopkgtests

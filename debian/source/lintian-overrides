@@ -1,16 +1,15 @@
 # this uses its own patch series generation
 openjdk-8 source: patch-file-present-but-not-mentioned-in-series
 
-# needed for portability to older distro releases
-openjdk-8 source: debian-rules-parses-dpkg-parsechangelog
-
 # not feasible here
 openjdk-8 source: debian-watch-file-is-missing
 
 # highly intricate, not touching this for now
 openjdk-8 source: no-dh-sequencer
+openjdk-8 source: package-uses-old-debhelper-compat-version
 openjdk-8 source: silent-on-rules-requiring-root
 openjdk-8 source: no-dep5-copyright
+openjdk-8 source: debian-control-has-obsolete-dbg-package
 
 # jajajajaja…
 openjdk-8 source: cute-field

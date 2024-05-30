@@ -24,7 +24,7 @@
        ;;
      i?86)
        VAR_CPU=x86
-@@ -451,7 +458,13 @@ AC_DEFUN([PLATFORM_SETUP_LEGACY_VARS],
+@@ -455,7 +462,13 @@ AC_DEFUN([PLATFORM_SETUP_LEGACY_VARS],
      ppc64)   ZERO_ARCHDEF=PPC64 ;;
      s390*)   ZERO_ARCHDEF=S390  ;;
      sparc*)  ZERO_ARCHDEF=SPARC ;;
@@ -41,7 +41,7 @@
    esac
 --- a/hotspot/src/os/linux/vm/os_linux.cpp
 +++ b/hotspot/src/os/linux/vm/os_linux.cpp
-@@ -1976,7 +1976,7 @@ void * os::dll_load(const char *filename
+@@ -1980,7 +1980,7 @@ void * os::dll_load(const char *filename
  
    #if  (defined IA32)
      static  Elf32_Half running_arch_code=EM_386;

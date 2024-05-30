@@ -1,3 +1,48 @@
+openjdk-8 (8u412-ga-1) unstable; urgency=medium
+
+  Upstream-provided “Notes on individual issues” as applicable:
+
+  security-libs/org.ietf.jgss:krb5:
+
+  JDK-8168518: rcache interop with krb5-1.15
+  ==========================================
+  The hash algorithm used in the Kerberos 5 replay cache file (rcache)
+  has been changed from MD5 to SHA256. This is the same algorithm used
+  by MIT krb5-1.15 and is interoperable with earlier releases of MIT
+  krb5.
+
+  The MD5 algorithm can still be used by setting the new
+  jdk.krb5.rcache.useMD5 property to 'true':
+
+  java -Djdk.krb5.rcache.useMD5=true ...
+
+  This is useful where either the system has a coarse clock and has to
+  depend on hash values in replay attack detection, or interoperability
+  with the rcache files in older versions of OpenJDK is required.
+
+  client-libs/java.awt:
+
+  JDK-8322750: AWT SystemTray API Is Not Supported on Most Linux Desktops
+  =======================================================================
+  The java.awt.SystemTray API is used to interact with the system's
+  desktop taskbar to provide notifications and may include an icon
+  representing an application. The GNOME desktop's support for taskbar
+  icons has not worked properly for several years, due to a platform
+  bug. This bug, in turn, affects the JDK's SystemTray support on GNOME
+  desktops.
+
+  Therefore, in accordance with the SystemTray API specification,
+  java.awt.SystemTray.isSupported() will now return false on systems
+  that exhibit this bug, which is assumed to be those running a version
+  of GNOME Shell below 45.
+
+  The impact of this change is likely to be minimal, as users of the
+  SystemTray API should already be able to handle isSupported()
+  returning false and the system tray on such platforms has already been
+  unsupported for a number of years for all applications.
+
+ -- Thorsten Glaser <tg@mirbsd.de>  Fri, 19 Apr 2024 23:12:48 +0200
+
 openjdk-8 (8u362-ga-1) unstable; urgency=medium
 
   Upstream-provided “Notes on individual issues”:

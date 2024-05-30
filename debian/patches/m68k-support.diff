@@ -1,8 +1,8 @@
 --- a/common/autoconf/platform.m4
 +++ b/common/autoconf/platform.m4
-@@ -156,6 +156,12 @@ AC_DEFUN([PLATFORM_EXTRACT_VARS_FROM_CPU
+@@ -162,6 +162,12 @@ AC_DEFUN([PLATFORM_EXTRACT_VARS_FROM_CPU
        VAR_CPU_BITS=64
-       VAR_CPU_ENDIAN=big
+       VAR_CPU_ENDIAN=little
        ;;
 +    m68k)
 +      VAR_CPU=m68k

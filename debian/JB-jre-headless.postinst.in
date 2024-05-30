@@ -19,8 +19,8 @@ configure)
 	  --remove jar /usr/bin/jexec 2>/dev/null || true
 	update-alternatives --remove jexec \
 	  $basedir/jre/lib/jexec 2>/dev/null || true
-	if [ -e /usr/share/binfmts ]; then
-	    rmdir --ignore-fail-on-non-empty /usr/share/binfmts
+	if test -d /usr/share/binfmts; then
+		rmdir --ignore-fail-on-non-empty /usr/share/binfmts
 	fi
     fi
 

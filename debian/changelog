@@ -1,33 +1,89 @@
-openjdk-8 (8u402-ga-2ubuntu1~20.04) focal-security; urgency=medium
+openjdk-8 (8u412-ga-1~20.04.1) focal-security; urgency=medium
 
+  * Modify the previous changelog entry: add CVE information
+
+ -- Pushkar Kulkarni <pushkar.kulkarni@canonical.com>  Thu, 30 May 2024 11:33:26 +0530
+
+openjdk-8 (8u412-ga-1~20.04) focal-security; urgency=medium
+
+  * New upstream release (Closes: #1069678)
+  * CVEs
+    - CVE-2024-21011, 8319851: Improve exception logging.
+    - CVE-2024-21085, 8322114: Improve Pack 200 handling.
+    - CVE-2024-21068, 8322122: Enhance generation of addresses.
+    - CVE-2024-21094, 8317507: Already fixed in November 2023:
+        C2 compilation fails with "Exceeded _node_regs array".
+
+  * Security fixes
+    - JDK-8317507, JDK-8325348: C2 compilation fails
+      with "Exceeded _node_regs array"
+    - JDK-8318340: Improve RSA key implementations
+    - JDK-8319851: Improve exception logging
+    - JDK-8322114: Improve Pack 200 handling
+    - JDK-8322122: Enhance generation of addresses
+  * Other changes see
+    https://mail.openjdk.org/pipermail/jdk8u-dev/2024-April/018329.html
+  * Upload sponsored by QVEST ⮡ dıgıtal
+  * Re-enable running tests by default except on noble/i386 (lacks prereqs)
+  * Switch from pkg-config to pkgconf for bookworm/mantic+ (lintian)
+
+  [ Pushkar Kulkarni ]
   * Upload to Ubuntu 20.04
-  * Includes fixes to the following CVEs:
-    - CVE-2024-20918
-    - CVE-2024-20919
-    - CVE-2024-20921
-    - CVE-2024-20926
-    - CVE-2024-20945
-    - CVE-2024-20952
-  * Includes the following Security fixes:
-    - JDK-8308204: Enhanced certificate processing
-    - JDK-8314284: Enhance Nashorn performance
-    - JDK-8314295: Enhance verification of verifier
-    - JDK-8314307: Improve loop handling
-    - JDK-8314468: Improve Compiler loops
-    - JDK-8316976: Improve signature handling
-    - JDK-8317547: Enhance TLS connection support
 
- -- Pushkar Kulkarni <pushkar.kulkarni@canonical.com>  Tue, 27 Feb 2024 12:29:04 +0530
+ -- Thorsten Glaser <tg@mirbsd.de>  Tue, 23 Apr 2024 01:10:58 +0200
 
-openjdk-8 (8u402-ga-2ubuntu1) noble; urgency=medium
+openjdk-8 (8u402-ga-8) unstable; urgency=low
 
-  * Fix installation issue on i386 (LP: #2053110):
-    - d/rules: build without atk bridge on i386 for Ubuntu versions that
-      do not have it.
-    - d/JB-jre-headless.postinst.in: check that /usr/share/binfmts exists
-      before trying to delete it.
+  * Boostrap with jdk-headless
+  * Add patch to switch dlsym use to time_t-64 functions if needed
 
- -- Vladimir Petko <vladimir.petko@canonical.com>  Wed, 14 Feb 2024 19:58:48 +1300
+ -- Thorsten Glaser <tg@mirbsd.de>  Sat, 06 Apr 2024 17:27:18 +0200
+
+openjdk-8 (8u402-ga-7) unstable; urgency=low
+
+  * Remove jexec from jinfo to fix update-java-alternatives (LP#2059181)
+
+ -- Thorsten Glaser <tg@mirbsd.de>  Tue, 02 Apr 2024 17:03:49 +0200
+
+openjdk-8 (8u402-ga-6) unstable; urgency=low
+
+  * Build without tests for t64 transition
+
+ -- Thorsten Glaser <tg@mirbsd.de>  Sun, 24 Mar 2024 22:47:14 +0100
+
+openjdk-8 (8u402-ga-5) unstable; urgency=low
+
+  * Switch noble also to libcups2t64
+
+ -- Thorsten Glaser <tg@mirbsd.de>  Tue, 19 Mar 2024 22:43:33 +0100
+
+openjdk-8 (8u402-ga-4) unstable; urgency=medium
+
+  * Switch to a different “random small arch:all package existing
+    only in Debian” for the cups t64 divide check, due to #805988
+
+ -- Thorsten Glaser <tg@mirbsd.de>  Thu, 14 Mar 2024 21:33:20 +0100
+
+openjdk-8 (8u402-ga-3) unstable; urgency=medium
+
+  [ Vladimir Petko ]
+  * Unbreak installability with missing /usr/share/binfmts
+
+  [ Thorsten Glaser, Vladimir Petko ]
+  * Fix coïnstallability for real on focal, jammy, mantic where
+    libatk-wrapper-java-jni:i386 does not exist, by making its
+    absence at run-time into a warning for *only* i386 on affected
+    releases (pre-focal, noble+, Debian aren’t affected)
+    Closes: #1064191, LP#1916327, LP#2053110
+
+  [ Thorsten Glaser ]
+  * Update dlopen dependencies for t64 transition:
+    - libcups2 → libcups2t64 for trixie+ (and >noble?)
+    - libglib2.0-0 → libglib2.0-0t64 for trixie+ and noble+
+    - libgtk2.0-0 → libgtk2.0-0t64 for trixie+ and noble+
+  * Adjust bd_syslibs to ensure right side of the t64 divide
+
+ -- Thorsten Glaser <tg@mirbsd.de>  Wed, 13 Mar 2024 22:46:46 +0100
 
 openjdk-8 (8u402-ga-2) unstable; urgency=low
 

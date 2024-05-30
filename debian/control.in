@@ -1,12 +1,11 @@
 Source: @basename@
 Section: java
 Priority: optional
-Maintainer: Ubuntu Developers <ubuntu-devel-discuss@lists.ubuntu.com>
-XSBC-Original-Maintainer: Java Maintenance <pkg-java-maintainers@lists.alioth.debian.org>
+Maintainer: Java Maintenance <pkg-java-maintainers@lists.alioth.debian.org>
 Uploaders: Thorsten Glaser <tg@mirbsd.de>
 Build-Depends: @bd_debhelper@ quilt, m4, lsb-release, zip, unzip,
   @bd_bootstrap@
-  sharutils, gawk, cpio, pkg-config, procps, wdiff, tzdata,
+  sharutils, gawk, cpio, procps, wdiff, tzdata,
   @bd_check@ time,
   @bd_autotools@ @bd_ant@ @bd_fastjar@
   @bd_gcc@ @bd_openjdk@ @bd_zero@
