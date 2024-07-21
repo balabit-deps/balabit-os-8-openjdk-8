@@ -3,14 +3,9 @@ Section: java
 Priority: optional
 Maintainer: Java Maintenance <pkg-java-maintainers@lists.alioth.debian.org>
 Uploaders: Thorsten Glaser <tg@mirbsd.de>
-Build-Depends: debhelper (>= 11), quilt, m4, lsb-release, zip, unzip,
-  openjdk-8-jdk-headless,
-  sharutils, gawk, cpio, procps, wdiff, tzdata,
-  xvfb <!nocheck>, xauth <!nocheck>, xfonts-base <!nocheck>, libgl1-mesa-dri <!nocheck>, xfwm4 <!nocheck>, x11-xkb-utils <!nocheck>, dbus-x11 <!nocheck>, openjdk-8-jre-headless <!nocheck> | default-jre-headless (>= 2:1.8) <!nocheck>, jtreg (>> 4.2-b13-1~) <!nocheck>, libasmtools-java <!nocheck>, testng <!nocheck>, time,
-  autoconf (>= 2.69), automake, pkg-config, ant, ant-optional, fastjar (>= 2:0.96-0ubuntu2),
-  gcc-9, g++-9, libxtst-dev, libxi-dev, libxt-dev, libxaw7-dev, libxrender-dev, libcups2-dev, libasound2-dev, liblcms2-dev, libxinerama-dev, libkrb5-dev, xsltproc, libpcsclite-dev, libfreetype-dev, libgtk2.0-dev, libffi-dev,
-  zlib1g-dev, libattr1-dev, libpng-dev, libjpeg-dev, libgif-dev, libcups2, libglib2.0-0 (>= 2.24), libgtk2.0-0 (>= 2.14), libpulse-dev (>= 0.9.12), systemtap-sdt-dev,
-  libnss3-dev (>= 2:3.26), openjdk-8-jdk-headless <cross>, dpkg-dev (>= 1.17.14),
+Build-Depends: openjdk-8-jdk, debhelper (>= 11), quilt,
+ m4, lsb-release, zip, unzip, sharutils, gawk, cpio, procps, wdiff, tzdata,
+ xvfb <!nocheck>, xauth <!nocheck>, xfonts-base <!nocheck>, libgl1-mesa-dri <!nocheck>, xfwm4 <!nocheck>, x11-xkb-utils <!nocheck>, dbus-x11 <!nocheck>, jtreg (>> 4.2-b13-1~) <!nocheck>, libasmtools-java <!nocheck>, testng <!nocheck>, autoconf (>= 2.69), automake, pkg-config, ant, ant-optional, fastjar (>= 2:0.96-0ubuntu2), gcc-9, g++-9, libxtst-dev, libxi-dev, libxt-dev, libxaw7-dev, libxrender-dev, libcups2-dev, libasound2-dev, liblcms2-dev, libxinerama-dev, libkrb5-dev, xsltproc, libpcsclite-dev, libfreetype-dev, libgtk2.0-dev, libffi-dev, zlib1g-dev, libattr1-dev, libpng-dev, libjpeg-dev, libgif-dev, libcups2, libglib2.0-0 (>= 2.24), libgtk2.0-0 (>= 2.14), libpulse-dev (>= 0.9.12), systemtap-sdt-dev, libnss3-dev (>= 2:3.26), dpkg-dev (>= 1.17.14), time
 Standards-Version: 4.6.2
 Homepage: https://openjdk.org/projects/jdk8u/
 VCS-git: https://evolvis.org/anonscm/git/alioth/openjdk-8.git -b master

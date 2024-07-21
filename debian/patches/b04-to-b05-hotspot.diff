@@ -1,0 +1,1162 @@
+# DP: git diff jdk8u422-b04..jdk8u422-b05 hotspot
+
+--- a/hotspot/make/windows/makefiles/compile.make
++++ b/hotspot/make/windows/makefiles/compile.make
+@@ -53,7 +53,7 @@ CXX=cl.exe
+ # improving the quality of crash log stack traces involving jvm.dll.
+ 
+ # These are always used in all compiles
+-CXX_FLAGS=$(EXTRA_CFLAGS) /nologo /W3 /WX
++CXX_FLAGS=$(EXTRA_CFLAGS) /nologo /W3 /WX /wd4800
+ 
+ # Let's add debug information when Full Debug Symbols is enabled
+ !if "$(ENABLE_FULL_DEBUG_SYMBOLS)" == "1"
+--- a/hotspot/src/share/vm/c1/c1_RangeCheckElimination.cpp
++++ b/hotspot/src/share/vm/c1/c1_RangeCheckElimination.cpp
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright (c) 2012, 2023, Oracle and/or its affiliates. All rights reserved.
++ * Copyright (c) 2012, 2024, Oracle and/or its affiliates. All rights reserved.
+  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
+  *
+  * This code is free software; you can redistribute it and/or modify it
+@@ -441,14 +441,14 @@ void RangeCheckEliminator::in_block_moti
+ 
+           if (c) {
+             jint value = c->type()->as_IntConstant()->value();
+-            if (value != min_jint) {
+-              if (ao->op() == Bytecodes::_isub) {
+-                value = -value;
+-              }
++            if (ao->op() == Bytecodes::_iadd) {
+               base = java_add(base, value);
+-              last_integer = base;
+-              last_instruction = other;
++            } else {
++              assert(ao->op() == Bytecodes::_isub, "unexpected bytecode");
++              base = java_subtract(base, value);
+             }
++            last_integer = base;
++            last_instruction = other;
+             index = other;
+           } else {
+             break;
+--- a/hotspot/src/share/vm/c1/c1_Runtime1.cpp
++++ b/hotspot/src/share/vm/c1/c1_Runtime1.cpp
+@@ -58,6 +58,7 @@
+ #include "runtime/vframeArray.hpp"
+ #include "utilities/copy.hpp"
+ #include "utilities/events.hpp"
++#include "utilities/exceptions.hpp"
+ 
+ 
+ // Implementation of StubAssembler
+@@ -536,8 +537,9 @@ JRT_ENTRY_NO_ASYNC(static address, excep
+     if (TraceExceptions) {
+       ttyLocker ttyl;
+       ResourceMark rm;
+-      tty->print_cr("Exception <%s> (" INTPTR_FORMAT ") thrown in compiled method <%s> at PC " INTPTR_FORMAT " for thread " INTPTR_FORMAT "",
+-                    exception->print_value_string(), p2i((address)exception()), nm->method()->print_value_string(), p2i(pc), p2i(thread));
++      tty->print_cr("Exception <%.*s> (" INTPTR_FORMAT ") thrown in compiled method <%s> at PC " INTPTR_FORMAT " for thread " INTPTR_FORMAT "",
++                    MAX_LEN, exception->print_value_string(),
++                    p2i((address)exception()), nm->method()->print_value_string(), p2i(pc), p2i(thread));
+     }
+     // for AbortVMOnException flag
+     NOT_PRODUCT(Exceptions::debug_check_abort(exception));
+--- a/hotspot/src/share/vm/classfile/symbolTable.cpp
++++ b/hotspot/src/share/vm/classfile/symbolTable.cpp
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
++ * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
+  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
+  *
+  * This code is free software; you can redistribute it and/or modify it
+@@ -236,7 +236,23 @@ unsigned int SymbolTable::hash_symbol(co
+ // entries in the symbol table during normal execution (only during
+ // safepoints).
+ 
++// Symbols should represent entities from the constant pool that are
++// limited to <64K in length, but usage errors creep in allowing Symbols
++// to be used for arbitrary strings. For debug builds we will assert if
++// a string is too long, whereas product builds will truncate it.
++static int check_length(const char* name, int len) {
++  assert(len <= Symbol::max_length(),
++         "String length exceeds the maximum Symbol length");
++  if (len > Symbol::max_length()) {
++    warning("A string \"%.80s ... %.80s\" exceeds the maximum Symbol "
++            "length of %d and has been truncated", name, (name + len - 80), Symbol::max_length());
++    len = Symbol::max_length();
++  }
++  return len;
++}
++
+ Symbol* SymbolTable::lookup(const char* name, int len, TRAPS) {
++  len = check_length(name, len);
+   unsigned int hashValue = hash_symbol(name, len);
+   int index = the_table()->hash_to_index(hashValue);
+ 
+@@ -367,6 +383,7 @@ void SymbolTable::add(ClassLoaderData* l
+     for (int i=0; i<names_count; i++) {
+       int index = table->hash_to_index(hashValues[i]);
+       bool c_heap = !loader_data->is_the_null_class_loader_data();
++      assert(lengths[i] <= Symbol::max_length(), "must be - these come from the constant pool");
+       Symbol* sym = table->basic_add(index, (u1*)names[i], lengths[i], hashValues[i], c_heap, CHECK);
+       cp->symbol_at_put(cp_indices[i], sym);
+     }
+@@ -375,7 +392,8 @@ void SymbolTable::add(ClassLoaderData* l
+ 
+ Symbol* SymbolTable::new_permanent_symbol(const char* name, TRAPS) {
+   unsigned int hash;
+-  Symbol* result = SymbolTable::lookup_only((char*)name, (int)strlen(name), hash);
++  int len = check_length(name, (int)strlen(name));
++  Symbol* result = SymbolTable::lookup_only((char*)name, len, hash);
+   if (result != NULL) {
+     return result;
+   }
+@@ -384,13 +402,14 @@ Symbol* SymbolTable::new_permanent_symbo
+ 
+   SymbolTable* table = the_table();
+   int index = table->hash_to_index(hash);
+-  return table->basic_add(index, (u1*)name, (int)strlen(name), hash, false, THREAD);
++  return table->basic_add(index, (u1*)name, len, hash, false, THREAD);
+ }
+ 
+ Symbol* SymbolTable::basic_add(int index_arg, u1 *name, int len,
+                                unsigned int hashValue_arg, bool c_heap, TRAPS) {
+   assert(!Universe::heap()->is_in_reserved(name),
+          "proposed name of symbol must be stable");
++  assert(len <= Symbol::max_length(), "caller should have ensured this");
+ 
+   // Don't allow symbols to be created which cannot fit in a Symbol*.
+   if (len > Symbol::max_length()) {
+--- a/hotspot/src/share/vm/interpreter/bytecodeInterpreter.cpp
++++ b/hotspot/src/share/vm/interpreter/bytecodeInterpreter.cpp
+@@ -2854,7 +2854,9 @@ run:
+       if (TraceExceptions) {
+         ttyLocker ttyl;
+         ResourceMark rm;
+-        tty->print_cr("Exception <%s> (" INTPTR_FORMAT ")", except_oop->print_value_string(), p2i(except_oop()));
++        tty->print_cr("Exception <%.*s> (" INTPTR_FORMAT ")",
++                      MAX_LEN, except_oop->print_value_string(),
++                      p2i(except_oop()));
+         tty->print_cr(" thrown in interpreter method <%s>", METHOD->print_value_string());
+         tty->print_cr(" at bci %d, continuing at %d for thread " INTPTR_FORMAT,
+                       (int)(istate->bcp() - METHOD->code_base()),
+@@ -2870,7 +2872,9 @@ run:
+     if (TraceExceptions) {
+       ttyLocker ttyl;
+       ResourceMark rm;
+-      tty->print_cr("Exception <%s> (" INTPTR_FORMAT ")", except_oop->print_value_string(), p2i(except_oop()));
++      tty->print_cr("Exception <%.*s> (" INTPTR_FORMAT ")",
++                    MAX_LEN, except_oop->print_value_string(),
++                    p2i(except_oop()));
+       tty->print_cr(" thrown in interpreter method <%s>", METHOD->print_value_string());
+       tty->print_cr(" at bci %d, unwinding for thread " INTPTR_FORMAT,
+                     (int)(istate->bcp() - METHOD->code_base()),
+--- a/hotspot/src/share/vm/interpreter/interpreterRuntime.cpp
++++ b/hotspot/src/share/vm/interpreter/interpreterRuntime.cpp
+@@ -56,6 +56,7 @@
+ #include "runtime/synchronizer.hpp"
+ #include "runtime/threadCritical.hpp"
+ #include "utilities/events.hpp"
++#include "utilities/exceptions.hpp"
+ #ifdef TARGET_ARCH_x86
+ # include "vm_version_x86.hpp"
+ #endif
+@@ -457,12 +458,13 @@ IRT_ENTRY(address, InterpreterRuntime::e
+       const char* detail_message = java_lang_Throwable::message_as_utf8(h_exception());
+       ttyLocker ttyl;  // Lock after getting the detail message
+       if (detail_message != NULL) {
+-        tty->print_cr("Exception <%s: %s> (" INTPTR_FORMAT ")",
+-                      h_exception->print_value_string(), detail_message,
++        tty->print_cr("Exception <%.*s: %.*s> (" INTPTR_FORMAT ")",
++                      MAX_LEN, h_exception->print_value_string(),
++                      MAX_LEN, detail_message,
+                       (address)h_exception());
+       } else {
+-        tty->print_cr("Exception <%s> (" INTPTR_FORMAT ")",
+-                      h_exception->print_value_string(),
++        tty->print_cr("Exception <%.*s> (" INTPTR_FORMAT ")",
++                      MAX_LEN, h_exception->print_value_string(),
+                       (address)h_exception());
+       }
+       tty->print_cr(" thrown in interpreter method <%s>", h_method->print_value_string());
+--- a/hotspot/src/share/vm/oops/symbol.cpp
++++ b/hotspot/src/share/vm/oops/symbol.cpp
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
++ * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
+  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
+  *
+  * This code is free software; you can redistribute it and/or modify it
+@@ -33,6 +33,7 @@
+ #include "memory/resourceArea.hpp"
+ 
+ Symbol::Symbol(const u1* name, int length, int refcount) {
++  assert(length <= max_length(), "SymbolTable should have caught this!");
+   _refcount = refcount;
+   _length = length;
+   _identity_hash = os::random();
+--- a/hotspot/src/share/vm/oops/symbol.hpp
++++ b/hotspot/src/share/vm/oops/symbol.hpp
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
++ * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
+  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
+  *
+  * This code is free software; you can redistribute it and/or modify it
+@@ -135,6 +135,7 @@ class Symbol : private SymbolBase {
+     _body[index] = value;
+   }
+ 
++  // Constructor is private for use only by SymbolTable.
+   Symbol(const u1* name, int length, int refcount);
+   void* operator new(size_t size, int len, TRAPS) throw();
+   void* operator new(size_t size, int len, Arena* arena, TRAPS) throw();
+--- a/hotspot/src/share/vm/opto/addnode.cpp
++++ b/hotspot/src/share/vm/opto/addnode.cpp
+@@ -833,6 +833,95 @@ const Type *XorLNode::add_ring( const Ty
+   return TypeLong::make( r0->get_con() ^ r1->get_con() );
+ }
+ 
++
++Node* MaxNode::build_min_max(Node* a, Node* b, bool is_max, bool is_unsigned, const Type* t, PhaseGVN& gvn) {
++  bool is_int = gvn.type(a)->isa_int();
++  assert(is_int || gvn.type(a)->isa_long(), "int or long inputs");
++  assert(is_int == (gvn.type(b)->isa_int() != NULL), "inconsistent inputs");
++  if (!is_unsigned) {
++    if (is_max) {
++      if (is_int) {
++        Node* res =  gvn.transform(new (gvn.C) MaxINode(a, b));
++        assert(gvn.type(res)->is_int()->_lo >= t->is_int()->_lo && gvn.type(res)->is_int()->_hi <= t->is_int()->_hi, "type doesn't match");
++        return res;
++      } else {
++        Node* cmp = gvn.transform(new (gvn.C) CmpLNode(a, b));
++        Node* bol = gvn.transform(new (gvn.C) BoolNode(cmp, BoolTest::lt));
++        return gvn.transform(new (gvn.C) CMoveLNode(bol, a, b, t->is_long()));
++      }
++    } else {
++      if (is_int) {
++        Node* res =  gvn.transform(new (gvn.C) MinINode(a, b));
++        assert(gvn.type(res)->is_int()->_lo >= t->is_int()->_lo && gvn.type(res)->is_int()->_hi <= t->is_int()->_hi, "type doesn't match");
++        return res;
++      } else {
++        Node* cmp = gvn.transform(new (gvn.C) CmpLNode(b, a));
++        Node* bol = gvn.transform(new (gvn.C) BoolNode(cmp, BoolTest::lt));
++        return gvn.transform(new (gvn.C) CMoveLNode(bol, a, b, t->is_long()));
++      }
++    }
++  } else {
++    if (is_max) {
++      if (is_int) {
++        Node* cmp = gvn.transform(new (gvn.C) CmpUNode(a, b));
++        Node* bol = gvn.transform(new (gvn.C) BoolNode(cmp, BoolTest::lt));
++        return gvn.transform(new (gvn.C) CMoveINode(bol, a, b, t->is_int()));
++      } else {
++        Node* cmp = gvn.transform(new (gvn.C) CmpULNode(a, b));
++        Node* bol = gvn.transform(new (gvn.C) BoolNode(cmp, BoolTest::lt));
++        return gvn.transform(new (gvn.C) CMoveLNode(bol, a, b, t->is_long()));
++      }
++    } else {
++      if (is_int) {
++        Node* cmp = gvn.transform(new (gvn.C) CmpUNode(b, a));
++        Node* bol = gvn.transform(new (gvn.C) BoolNode(cmp, BoolTest::lt));
++        return gvn.transform(new (gvn.C) CMoveINode(bol, a, b, t->is_int()));
++      } else {
++        Node* cmp = gvn.transform(new (gvn.C) CmpULNode(b, a));
++        Node* bol = gvn.transform(new (gvn.C) BoolNode(cmp, BoolTest::lt));
++        return gvn.transform(new (gvn.C) CMoveLNode(bol, a, b, t->is_long()));
++      }
++    }
++  }
++}
++
++Node* MaxNode::build_min_max_diff_with_zero(Node* a, Node* b, bool is_max, const Type* t, PhaseGVN& gvn) {
++  bool is_int = gvn.type(a)->isa_int();
++  assert(is_int || gvn.type(a)->isa_long(), "int or long inputs");
++  assert(is_int == (gvn.type(b)->isa_int() != NULL), "inconsistent inputs");
++  Node* zero = NULL;
++  if (is_int) {
++    zero = gvn.intcon(0);
++  } else {
++    zero = gvn.longcon(0);
++  }
++  if (is_max) {
++    if (is_int) {
++      Node* cmp = gvn.transform(new (gvn.C) CmpINode(a, b));
++      Node* sub = gvn.transform(new (gvn.C) SubINode(a, b));
++      Node* bol = gvn.transform(new (gvn.C) BoolNode(cmp, BoolTest::lt));
++      return gvn.transform(new (gvn.C) CMoveINode(bol, sub, zero, t->is_int()));
++    } else {
++      Node* cmp = gvn.transform(new (gvn.C) CmpLNode(a, b));
++      Node* sub = gvn.transform(new (gvn.C) SubLNode(a, b));
++      Node* bol = gvn.transform(new (gvn.C) BoolNode(cmp, BoolTest::lt));
++      return gvn.transform(new (gvn.C) CMoveLNode(bol, sub, zero, t->is_long()));
++    }
++  } else {
++    if (is_int) {
++      Node* cmp = gvn.transform(new (gvn.C) CmpINode(b, a));
++      Node* sub = gvn.transform(new (gvn.C) SubINode(a, b));
++      Node* bol = gvn.transform(new (gvn.C) BoolNode(cmp, BoolTest::lt));
++      return gvn.transform(new (gvn.C) CMoveINode(bol, sub, zero, t->is_int()));
++    } else {
++      Node* cmp = gvn.transform(new (gvn.C) CmpLNode(b, a));
++      Node* sub = gvn.transform(new (gvn.C) SubLNode(a, b));
++      Node* bol = gvn.transform(new (gvn.C) BoolNode(cmp, BoolTest::lt));
++      return gvn.transform(new (gvn.C) CMoveLNode(bol, sub, zero, t->is_long()));
++    }
++  }
++}
++
+ //=============================================================================
+ //------------------------------add_ring---------------------------------------
+ // Supplied function returns the sum of the inputs.
+@@ -934,6 +1023,140 @@ Node *MinINode::Ideal(PhaseGVN *phase, b
+   }
+   return NULL;
+ }
++
++// Collapse the "addition with overflow-protection" pattern, and the symmetrical
++// "subtraction with underflow-protection" pattern. These are created during the
++// unrolling, when we have to adjust the limit by subtracting the stride, but want
++// to protect against underflow: MaxL(SubL(limit, stride), min_jint).
++// If we have more than one of those in a sequence:
++//
++//   x  con2
++//   |  |
++//   AddL  clamp2
++//     |    |
++//    Max/MinL con1
++//          |  |
++//          AddL  clamp1
++//            |    |
++//           Max/MinL (n)
++//
++// We want to collapse it to:
++//
++//   x  con1  con2
++//   |    |    |
++//   |   AddLNode (new_con)
++//   |    |
++//  AddLNode  clamp1
++//        |    |
++//       Max/MinL (n)
++//
++// Note: we assume that SubL was already replaced by an AddL, and that the stride
++// has its sign flipped: SubL(limit, stride) -> AddL(limit, -stride).
++static bool is_clamp(PhaseGVN* phase, Node* n, Node* c) {
++  // Check that the two clamps have the correct values.
++  jlong clamp = (n->Opcode() == Op_MaxL) ? min_jint : max_jint;
++  const TypeLong* t = phase->type(c)->isa_long();
++  return t != NULL && t->is_con() &&
++          t->get_con() == clamp;
++}
++
++static bool is_sub_con(PhaseGVN* phase, Node* n, Node* c) {
++  // Check that the constants are negative if MaxL, and positive if MinL.
++  const TypeLong* t = phase->type(c)->isa_long();
++  return t != NULL && t->is_con() &&
++          t->get_con() < max_jint && t->get_con() > min_jint &&
++          (t->get_con() < 0) == (n->Opcode() == Op_MaxL);
++}
++
++Node* fold_subI_no_underflow_pattern(Node* n, PhaseGVN* phase) {
++  assert(n->Opcode() == Op_MaxL || n->Opcode() == Op_MinL, "sanity");
++  // Verify the graph level by level:
++  Node* add1   = n->in(1);
++  Node* clamp1 = n->in(2);
++  if (add1->Opcode() == Op_AddL && is_clamp(phase, n, clamp1)) {
++    Node* max2 = add1->in(1);
++    Node* con1 = add1->in(2);
++    if (max2->Opcode() == n->Opcode() && is_sub_con(phase, n, con1)) {
++      Node* add2   = max2->in(1);
++      Node* clamp2 = max2->in(2);
++      if (add2->Opcode() == Op_AddL && is_clamp(phase, n, clamp2)) {
++        Node* x    = add2->in(1);
++        Node* con2 = add2->in(2);
++        if (is_sub_con(phase, n, con2)) {
++          Node* new_con = phase->transform(new (phase->C) AddLNode(con1, con2));
++          Node* new_sub = phase->transform(new (phase->C) AddLNode(x, new_con));
++          n->set_req_X(1, new_sub, phase);
++          return n;
++        }
++      }
++    }
++  }
++  return NULL;
++}
++
++const Type* MaxLNode::add_ring(const Type* t0, const Type* t1) const {
++  const TypeLong* r0 = t0->is_long();
++  const TypeLong* r1 = t1->is_long();
++
++  return TypeLong::make(MAX2(r0->_lo, r1->_lo), MAX2(r0->_hi, r1->_hi), MAX2(r0->_widen, r1->_widen));
++}
++
++Node* MaxLNode::Identity(PhaseTransform* phase) {
++  const TypeLong* t1 = phase->type(in(1))->is_long();
++  const TypeLong* t2 = phase->type(in(2))->is_long();
++
++  // Can we determine maximum statically?
++  if (t1->_lo >= t2->_hi) {
++    return in(1);
++  } else if (t2->_lo >= t1->_hi) {
++    return in(2);
++  }
++
++  return MaxNode::Identity(phase);
++}
++
++Node* MaxLNode::Ideal(PhaseGVN* phase, bool can_reshape) {
++  Node* n = AddNode::Ideal(phase, can_reshape);
++  if (n != NULL) {
++    return n;
++  }
++  if (can_reshape) {
++    return fold_subI_no_underflow_pattern(this, phase);
++  }
++  return NULL;
++}
++
++const Type* MinLNode::add_ring(const Type* t0, const Type* t1) const {
++  const TypeLong* r0 = t0->is_long();
++  const TypeLong* r1 = t1->is_long();
++
++  return TypeLong::make(MIN2(r0->_lo, r1->_lo), MIN2(r0->_hi, r1->_hi), MIN2(r0->_widen, r1->_widen));
++}
++
++Node* MinLNode::Identity(PhaseTransform* phase) {
++  const TypeLong* t1 = phase->type(in(1))->is_long();
++  const TypeLong* t2 = phase->type(in(2))->is_long();
++
++  // Can we determine minimum statically?
++  if (t1->_lo >= t2->_hi) {
++    return in(2);
++  } else if (t2->_lo >= t1->_hi) {
++    return in(1);
++  }
++
++  return MaxNode::Identity(phase);
++}
++
++Node* MinLNode::Ideal(PhaseGVN* phase, bool can_reshape) {
++  Node* n = AddNode::Ideal(phase, can_reshape);
++  if (n != NULL) {
++    return n;
++  }
++  if (can_reshape) {
++    return fold_subI_no_underflow_pattern(this, phase);
++  }
++  return NULL;
++}
+ 
+ //------------------------------add_ring---------------------------------------
+ // Supplied function returns the sum of the inputs.
+--- a/hotspot/src/share/vm/opto/addnode.hpp
++++ b/hotspot/src/share/vm/opto/addnode.hpp
+@@ -217,9 +217,39 @@ public:
+ // all the behavior of addition on a ring.  Only new thing is that we allow
+ // 2 equal inputs to be equal.
+ class MaxNode : public AddNode {
++private:
++  static Node* build_min_max(Node* a, Node* b, bool is_max, bool is_unsigned, const Type* t, PhaseGVN& gvn);
++  static Node* build_min_max_diff_with_zero(Node* a, Node* b, bool is_max, const Type* t, PhaseGVN& gvn);
++
+ public:
+   MaxNode( Node *in1, Node *in2 ) : AddNode(in1,in2) {}
+   virtual int Opcode() const = 0;
++
++  static Node* unsigned_max(Node* a, Node* b, const Type* t, PhaseGVN& gvn) {
++    return build_min_max(a, b, true, true, t, gvn);
++  }
++
++  static Node* unsigned_min(Node* a, Node* b, const Type* t, PhaseGVN& gvn) {
++    return build_min_max(a, b, false, true, t, gvn);
++  }
++
++  static Node* signed_max(Node* a, Node* b, const Type* t, PhaseGVN& gvn) {
++    return build_min_max(a, b, true, false, t, gvn);
++  }
++
++  static Node* signed_min(Node* a, Node* b, const Type* t, PhaseGVN& gvn) {
++    return build_min_max(a, b, false, false, t, gvn);
++  }
++
++  // max(a-b, 0)
++  static Node* max_diff_with_zero(Node* a, Node* b, const Type* t, PhaseGVN& gvn) {
++    return build_min_max_diff_with_zero(a, b, true, t, gvn);
++  }
++
++  // min(a-b, 0)
++  static Node* min_diff_with_zero(Node* a, Node* b, const Type* t, PhaseGVN& gvn) {
++    return build_min_max_diff_with_zero(a, b, false, t, gvn);
++  }
+ };
+ 
+ //------------------------------MaxINode---------------------------------------
+@@ -249,4 +279,38 @@ public:
+   virtual Node *Ideal(PhaseGVN *phase, bool can_reshape);
+ };
+ 
++//------------------------------MaxLNode---------------------------------------
++// MAXimum of 2 longs.
++class MaxLNode : public MaxNode {
++public:
++  MaxLNode(Compile* C, Node* in1, Node* in2) : MaxNode(in1, in2) {
++    init_flags(Flag_is_macro);
++    C->add_macro_node(this);
++  }
++  virtual int Opcode() const;
++  virtual const Type* add_ring(const Type* t0, const Type* t1) const;
++  virtual const Type* add_id() const { return TypeLong::make(min_jlong); }
++  virtual const Type* bottom_type() const { return TypeLong::LONG; }
++  virtual uint ideal_reg() const { return Op_RegL; }
++  virtual Node* Identity(PhaseTransform* phase);
++  virtual Node* Ideal(PhaseGVN *phase, bool can_reshape);
++};
++
++//------------------------------MinLNode---------------------------------------
++// MINimum of 2 longs.
++class MinLNode : public MaxNode {
++public:
++  MinLNode(Compile* C, Node* in1, Node* in2) : MaxNode(in1, in2) {
++    init_flags(Flag_is_macro);
++    C->add_macro_node(this);
++  }
++  virtual int Opcode() const;
++  virtual const Type* add_ring(const Type* t0, const Type* t1) const;
++  virtual const Type* add_id() const { return TypeLong::make(max_jlong); }
++  virtual const Type* bottom_type() const { return TypeLong::LONG; }
++  virtual uint ideal_reg() const { return Op_RegL; }
++  virtual Node* Identity(PhaseTransform* phase);
++  virtual Node* Ideal(PhaseGVN* phase, bool can_reshape);
++};
++
+ #endif // SHARE_VM_OPTO_ADDNODE_HPP
+--- a/hotspot/src/share/vm/opto/classes.hpp
++++ b/hotspot/src/share/vm/opto/classes.hpp
+@@ -169,6 +169,7 @@ macro(LoopLimit)
+ macro(Mach)
+ macro(MachProj)
+ macro(MaxI)
++macro(MaxL)
+ macro(MemBarAcquire)
+ macro(LoadFence)
+ macro(MemBarAcquireLock)
+@@ -180,6 +181,7 @@ macro(MemBarVolatile)
+ macro(MemBarStoreStore)
+ macro(MergeMem)
+ macro(MinI)
++macro(MinL)
+ macro(ModD)
+ macro(ModF)
+ macro(ModI)
+--- a/hotspot/src/share/vm/opto/connode.cpp
++++ b/hotspot/src/share/vm/opto/connode.cpp
+@@ -942,6 +942,20 @@ const Type *ConvI2LNode::Value( PhaseTra
+   return tl;
+ }
+ 
++Node* ConvI2LNode::Identity(PhaseTransform* phase) {
++  // If type is in "int" sub-range, we can
++  // convert I2L(L2I(x)) => x
++  // since the conversions have no effect.
++  if (in(1)->Opcode() == Op_ConvL2I) {
++    Node* x = in(1)->in(1);
++    const TypeLong* t = phase->type(x)->isa_long();
++    if (t != NULL && t->_lo >= min_jint && t->_hi <= max_jint) {
++      return x;
++    }
++  }
++  return this;
++}
++
+ #ifdef _LP64
+ static inline bool long_ranges_overlap(jlong lo1, jlong hi1,
+                                        jlong lo2, jlong hi2) {
+--- a/hotspot/src/share/vm/opto/connode.hpp
++++ b/hotspot/src/share/vm/opto/connode.hpp
+@@ -513,6 +513,7 @@ public:
+   virtual int Opcode() const;
+   virtual const Type *Value( PhaseTransform *phase ) const;
+   virtual Node *Ideal(PhaseGVN *phase, bool can_reshape);
++  virtual Node* Identity(PhaseTransform* phase);
+   virtual uint  ideal_reg() const { return Op_RegL; }
+ };
+ 
+--- a/hotspot/src/share/vm/opto/loopTransform.cpp
++++ b/hotspot/src/share/vm/opto/loopTransform.cpp
+@@ -1291,7 +1291,7 @@ void PhaseIdealLoop::do_unroll( IdealLoo
+         new_limit = _igvn.intcon(limit->get_int() - stride_con);
+         set_ctrl(new_limit, C->root());
+       } else {
+-        // Limit is not constant.
++        // Limit is not constant. Int subtraction could lead to underflow.
+         if (loop_head->unrolled_count() == 1) { // only for first unroll
+           // Separate limit by Opaque node in case it is an incremented
+           // variable from previous loop to avoid using pre-incremented
+@@ -1303,53 +1303,37 @@ void PhaseIdealLoop::do_unroll( IdealLoo
+           Node* opaq_ctrl = get_ctrl(opaq);
+           limit = new (C) Opaque2Node( C, limit );
+           register_new_node( limit, opaq_ctrl );
++
++          // The Opaque2 node created above (in the case of the first unrolling) hides the type of the loop limit.
++          // Propagate this precise type information.
++          limit = new (C) CastIINode(limit, limit_type);
++          register_new_node(limit, opaq_ctrl);
+         }
+-        if (stride_con > 0 && (java_subtract(limit_type->_lo, stride_con) < limit_type->_lo) ||
+-            stride_con < 0 && (java_subtract(limit_type->_hi, stride_con) > limit_type->_hi)) {
+-          // No underflow.
+-          new_limit = new (C) SubINode(limit, stride);
++        // (1) Convert to long.
++        Node* limit_l = new (C) ConvI2LNode(limit);
++        register_new_node(limit_l, get_ctrl(limit));
++        Node* stride_l = _igvn.longcon(stride_con);
++        set_ctrl(stride_l, C->root());
++
++        // (2) Subtract: compute in long, to prevent underflow.
++        Node* new_limit_l = new (C) SubLNode(limit_l, stride_l);
++        register_new_node(new_limit_l, ctrl);
++
++        // (3) Clamp to int range, in case we had subtraction underflow.
++        Node* underflow_clamp_l = _igvn.longcon((stride_con > 0) ? min_jint : max_jint);
++        set_ctrl(underflow_clamp_l, C->root());
++        Node* new_limit_no_underflow_l = NULL;
++        if (stride_con > 0) {
++          // limit = MaxL(limit - stride, min_jint)
++          new_limit_no_underflow_l = new (C) MaxLNode(C, new_limit_l, underflow_clamp_l);
+         } else {
+-          // (limit - stride) may underflow.
+-          // Clamp the adjustment value with MININT or MAXINT:
+-          //
+-          //   new_limit = limit-stride
+-          //   if (stride > 0)
+-          //     new_limit = (limit < new_limit) ? MININT : new_limit;
+-          //   else
+-          //     new_limit = (limit > new_limit) ? MAXINT : new_limit;
+-          //
+-          BoolTest::mask bt = loop_end->test_trip();
+-          assert(bt == BoolTest::lt || bt == BoolTest::gt, "canonical test is expected");
+-          Node* adj_max = _igvn.intcon((stride_con > 0) ? min_jint : max_jint);
+-          set_ctrl(adj_max, C->root());
+-          Node* old_limit = NULL;
+-          Node* adj_limit = NULL;
+-          Node* bol = limit->is_CMove() ? limit->in(CMoveNode::Condition) : NULL;
+-          if (loop_head->unrolled_count() > 1 &&
+-              limit->is_CMove() && limit->Opcode() == Op_CMoveI &&
+-              limit->in(CMoveNode::IfTrue) == adj_max &&
+-              bol->as_Bool()->_test._test == bt &&
+-              bol->in(1)->Opcode() == Op_CmpI &&
+-              bol->in(1)->in(2) == limit->in(CMoveNode::IfFalse)) {
+-            // Loop was unrolled before.
+-            // Optimize the limit to avoid nested CMove:
+-            // use original limit as old limit.
+-            old_limit = bol->in(1)->in(1);
+-            // Adjust previous adjusted limit.
+-            adj_limit = limit->in(CMoveNode::IfFalse);
+-            adj_limit = new (C) SubINode(adj_limit, stride);
+-          } else {
+-            old_limit = limit;
+-            adj_limit = new (C) SubINode(limit, stride);
+-          }
+-          assert(old_limit != NULL && adj_limit != NULL, "");
+-          register_new_node( adj_limit, ctrl ); // adjust amount
+-          Node* adj_cmp = new (C) CmpINode(old_limit, adj_limit);
+-          register_new_node( adj_cmp, ctrl );
+-          Node* adj_bool = new (C) BoolNode(adj_cmp, bt);
+-          register_new_node( adj_bool, ctrl );
+-          new_limit = new (C) CMoveINode(adj_bool, adj_limit, adj_max, TypeInt::INT);
++          // limit = MinL(limit - stride, max_jint)
++          new_limit_no_underflow_l = new (C) MinLNode(C, new_limit_l, underflow_clamp_l);
+         }
++        register_new_node(new_limit_no_underflow_l, ctrl);
++
++        // (4) Convert back to int.
++        new_limit = new (C) ConvL2INode(new_limit_no_underflow_l);
+         register_new_node(new_limit, ctrl);
+       }
+       assert(new_limit != NULL, "");
+@@ -1532,6 +1516,9 @@ bool IdealLoopTree::dominates_backedge(N
+ //------------------------------adjust_limit-----------------------------------
+ // Helper function that computes new loop limit as (rc_limit-offset)/scale
+ Node* PhaseIdealLoop::adjust_limit(bool is_positive_stride, Node* scale, Node* offset, Node* rc_limit, Node* old_limit, Node* pre_ctrl, bool round) {
++  Node* old_limit_long = new (C) ConvI2LNode(old_limit);
++  register_new_node(old_limit_long, pre_ctrl);
++
+   Node* sub = new (C) SubLNode(rc_limit, offset);
+   register_new_node(sub, pre_ctrl);
+   Node* limit = new (C) DivLNode(NULL, sub, scale);
+@@ -1544,22 +1531,32 @@ Node* PhaseIdealLoop::adjust_limit(bool
+     register_new_node(limit, pre_ctrl);
+   }
+ 
+-  // Clamp the limit to handle integer under-/overflows.
++  // Clamp the limit to handle integer under-/overflows by using long values.
++  // We only convert the limit back to int when we handled under-/overflows.
++  // Note that all values are longs in the following computations.
+   // When reducing the limit, clamp to [min_jint, old_limit]:
+-  //   MIN(old_limit, MAX(limit, min_jint))
++  //   INT(MINL(old_limit, MAXL(limit, min_jint)))
++  //   - integer underflow of limit: MAXL chooses min_jint.
++  //   - integer overflow of limit: MINL chooses old_limit (<= MAX_INT < limit)
+   // When increasing the limit, clamp to [old_limit, max_jint]:
+-  //   MAX(old_limit, MIN(limit, max_jint))
+-  Node* cmp = new (C) CmpLNode(limit, _igvn.longcon(is_positive_stride ? min_jint : max_jint));
+-  register_new_node(cmp, pre_ctrl);
+-  Node* bol = new (C) BoolNode(cmp, is_positive_stride ? BoolTest::lt : BoolTest::gt);
+-  register_new_node(bol, pre_ctrl);
+-  limit = new (C) ConvL2INode(limit);
+-  register_new_node(limit, pre_ctrl);
+-  limit = new (C) CMoveINode(bol, limit, _igvn.intcon(is_positive_stride ? min_jint : max_jint), TypeInt::INT);
+-  register_new_node(limit, pre_ctrl);
++  //   INT(MAXL(old_limit, MINL(limit, max_jint)))
++  //   - integer overflow of limit: MINL chooses max_jint.
++  //   - integer underflow of limit: MAXL chooses old_limit (>= MIN_INT > limit)
++  // INT() is finally converting the limit back to an integer value.
++
++  Node* inner_result_long = NULL;
++  Node* outer_result_long = NULL;
++  if (is_positive_stride) {
++    inner_result_long = new (C) MaxLNode(C, limit, _igvn.longcon(min_jint));
++    outer_result_long = new (C) MinLNode(C, inner_result_long, old_limit_long);
++  } else {
++    inner_result_long = new (C) MinLNode(C, limit, _igvn.longcon(max_jint));
++    outer_result_long = new (C) MaxLNode(C, inner_result_long, old_limit_long);
++  }
++  register_new_node(inner_result_long, pre_ctrl);
++  register_new_node(outer_result_long, pre_ctrl);
+ 
+-  limit = is_positive_stride ? (Node*)(new (C) MinINode(old_limit, limit))
+-                             : (Node*)(new (C) MaxINode(old_limit, limit));
++  limit = new (C) ConvL2INode(outer_result_long);
+   register_new_node(limit, pre_ctrl);
+   return limit;
+ }
+--- a/hotspot/src/share/vm/opto/macro.cpp
++++ b/hotspot/src/share/vm/opto/macro.cpp
+@@ -2487,7 +2487,9 @@ void PhaseMacroExpand::eliminate_macro_n
+         assert(n->Opcode() == Op_LoopLimit ||
+                n->Opcode() == Op_Opaque1   ||
+                n->Opcode() == Op_Opaque2   ||
+-               n->Opcode() == Op_Opaque3, "unknown node type in macro list");
++               n->Opcode() == Op_Opaque3   ||
++               n->Opcode() == Op_MaxL      ||
++               n->Opcode() == Op_MinL, "unknown node type in macro list");
+       }
+       assert(success == (C->macro_count() < old_macro_count), "elimination reduces macro count");
+       progress = progress || success;
+@@ -2552,6 +2554,18 @@ bool PhaseMacroExpand::expand_macro_node
+         _igvn.replace_node(n, repl);
+         success = true;
+ #endif
++      } else if (n->Opcode() == Op_MaxL) {
++        // Since MaxL and MinL are not implemented in the backend, we expand them to
++        // a CMoveL construct now. At least until here, the type could be computed
++        // precisely. CMoveL is not so smart, but we can give it at least the best
++        // type we know abouot n now.
++        Node* repl = MaxNode::signed_max(n->in(1), n->in(2), _igvn.type(n), _igvn);
++        _igvn.replace_node(n, repl);
++        success = true;
++      } else if (n->Opcode() == Op_MinL) {
++        Node* repl = MaxNode::signed_min(n->in(1), n->in(2), _igvn.type(n), _igvn);
++        _igvn.replace_node(n, repl);
++        success = true;
+       }
+       assert(success == (C->macro_count() < old_macro_count), "elimination reduces macro count");
+       progress = progress || success;
+--- a/hotspot/src/share/vm/opto/node.hpp
++++ b/hotspot/src/share/vm/opto/node.hpp
+@@ -506,6 +506,7 @@ public:
+     disconnect_inputs(NULL, c);
+   }
+   void set_req_X( uint i, Node *n, PhaseIterGVN *igvn );
++  void set_req_X(uint i, Node *n, PhaseGVN *gvn);
+   // Find the one non-null required input.  RegionNode only
+   Node *nonnull_req() const;
+   // Add or remove precedence edges
+--- a/hotspot/src/share/vm/opto/phaseX.cpp
++++ b/hotspot/src/share/vm/opto/phaseX.cpp
+@@ -1957,6 +1957,15 @@ void Node::set_req_X( uint i, Node *n, P
+ 
+ }
+ 
++void Node::set_req_X(uint i, Node *n, PhaseGVN *gvn) {
++  PhaseIterGVN* igvn = gvn->is_IterGVN();
++  if (igvn == NULL) {
++    set_req(i, n);
++    return;
++  }
++  set_req_X(i, n, igvn);
++}
++
+ //-------------------------------replace_by-----------------------------------
+ // Using def-use info, replace one node for another.  Follow the def-use info
+ // to all users of the OLD node.  Then make all uses point to the NEW node.
+--- a/hotspot/src/share/vm/opto/superword.cpp
++++ b/hotspot/src/share/vm/opto/superword.cpp
+@@ -2187,20 +2187,39 @@ void SuperWord::align_initial_loop_index
+   _igvn.register_new_node_with_optimizer(N);
+   _phase->set_ctrl(N, pre_ctrl);
+ 
++  // The computation of the new pre-loop limit could overflow or underflow the int range. This is problematic in
++  // combination with Range Check Elimination (RCE), which determines a "safe" range where a RangeCheck will always
++  // succeed. RCE adjusts the pre-loop limit such that we only enter the main-loop once we have reached the "safe"
++  // range, and adjusts the main-loop limit so that we exit the main-loop before we leave the "safe" range. After RCE,
++  // the range of the main-loop can only be safely narrowed, and should never be widened. Hence, the pre-loop limit
++  // can only be increased (for stride > 0), but an add overflow might decrease it, or decreased (for stride < 0), but
++  // a sub underflow might increase it. To prevent that, we perform the Sub / Add and Max / Min with long operations.
++  lim0       = new (_phase->C) ConvI2LNode(lim0);
++  N          = new (_phase->C) ConvI2LNode(N);
++  orig_limit = new (_phase->C) ConvI2LNode(orig_limit);
++  _igvn.register_new_node_with_optimizer(lim0);
++  _igvn.register_new_node_with_optimizer(N);
++  _igvn.register_new_node_with_optimizer(orig_limit);
++
+   //   substitute back into (1), so that new limit
+   //     lim = lim0 + N
+   Node* lim;
+   if (stride < 0) {
+-    lim = new (_phase->C) SubINode(lim0, N);
++    lim = new (_phase->C) SubLNode(lim0, N);
+   } else {
+-    lim = new (_phase->C) AddINode(lim0, N);
++    lim = new (_phase->C) AddLNode(lim0, N);
+   }
+   _igvn.register_new_node_with_optimizer(lim);
+   _phase->set_ctrl(lim, pre_ctrl);
+   Node* constrained =
+-    (stride > 0) ? (Node*) new (_phase->C) MinINode(lim, orig_limit)
+-                 : (Node*) new (_phase->C) MaxINode(lim, orig_limit);
++    (stride > 0) ? (Node*) new (_phase->C) MinLNode(_phase->C, lim, orig_limit)
++                 : (Node*) new (_phase->C) MaxLNode(_phase->C, lim, orig_limit);
+   _igvn.register_new_node_with_optimizer(constrained);
++
++  // We know that the result is in the int range, there is never truncation
++  constrained = new (_phase->C) ConvL2INode(constrained);
++  _igvn.register_new_node_with_optimizer(constrained);
++
+   _phase->set_ctrl(constrained, pre_ctrl);
+   _igvn.hash_delete(pre_opaq);
+   pre_opaq->set_req(1, constrained);
+--- a/hotspot/src/share/vm/runtime/vmStructs.cpp
++++ b/hotspot/src/share/vm/runtime/vmStructs.cpp
+@@ -1755,6 +1755,8 @@ typedef TwoOopHashtable<Symbol*, mtClass
+   declare_c2_type(MaxNode, AddNode)                                       \
+   declare_c2_type(MaxINode, MaxNode)                                      \
+   declare_c2_type(MinINode, MaxNode)                                      \
++  declare_c2_type(MaxLNode, MaxNode)                                      \
++  declare_c2_type(MinLNode, MaxNode)                                      \
+   declare_c2_type(StartNode, MultiNode)                                   \
+   declare_c2_type(StartOSRNode, StartNode)                                \
+   declare_c2_type(ParmNode, ProjNode)                                     \
+--- a/hotspot/src/share/vm/utilities/exceptions.cpp
++++ b/hotspot/src/share/vm/utilities/exceptions.cpp
+@@ -141,10 +141,11 @@ void Exceptions::_throw(Thread* thread,
+   // tracing (do this up front - so it works during boot strapping)
+   if (TraceExceptions) {
+     ttyLocker ttyl;
+-    tty->print_cr("Exception <%s%s%s> (" INTPTR_FORMAT ") \n"
++    tty->print_cr("Exception <%.*s%s%.*s> (" INTPTR_FORMAT ") \n"
+                   "thrown [%s, line %d]\nfor thread " INTPTR_FORMAT,
+-                  h_exception->print_value_string(),
+-                  message ? ": " : "", message ? message : "",
++                  MAX_LEN, h_exception->print_value_string(),
++                  message ? ": " : "",
++                  MAX_LEN, message ? message : "",
+                   (address)h_exception(), file, line, thread);
+   }
+   // for AbortVMOnException flag
+--- a/hotspot/src/share/vm/utilities/exceptions.hpp
++++ b/hotspot/src/share/vm/utilities/exceptions.hpp
+@@ -29,6 +29,9 @@
+ #include "oops/oopsHierarchy.hpp"
+ #include "utilities/sizes.hpp"
+ 
++// Limit exception message components to 64K (the same max as Symbols)
++#define MAX_LEN 65535
++
+ // This file provides the basic support for exception handling in the VM.
+ // Note: We do not use C++ exceptions to avoid compiler dependencies and
+ // unpredictable performance.
+--- a/hotspot/src/share/vm/utilities/utf8.cpp
++++ b/hotspot/src/share/vm/utilities/utf8.cpp
+@@ -317,14 +317,16 @@ int UNICODE::utf8_size(jchar c) {
+ }
+ 
+ int UNICODE::utf8_length(jchar* base, int length) {
+-  int result = 0;
++  size_t result = 0;
+   for (int index = 0; index < length; index++) {
+     jchar c = base[index];
+-    if ((0x0001 <= c) && (c <= 0x007F)) result += 1;
+-    else if (c <= 0x07FF) result += 2;
+-    else result += 3;
++    int sz = utf8_size(c);
++    if (result + sz > INT_MAX-1) {
++      break;
++    }
++    result += sz;
+   }
+-  return result;
++  return static_cast<int>(result);
+ }
+ 
+ char* UNICODE::as_utf8(jchar* base, int length) {
+--- /dev/null
++++ b/hotspot/test/compiler/loopopts/TestUnrollLimitPreciseType.java
+@@ -0,0 +1,90 @@
++/*
++ * Copyright (c) 2023, Oracle and/or its affiliates. All rights reserved.
++ * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
++ *
++ * This code is free software; you can redistribute it and/or modify it
++ * under the terms of the GNU General Public License version 2 only, as
++ * published by the Free Software Foundation.
++ *
++ * This code is distributed in the hope that it will be useful, but WITHOUT
++ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
++ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
++ * version 2 for more details (a copy is included in the LICENSE file that
++ * accompanied this code).
++ *
++ * You should have received a copy of the GNU General Public License version
++ * 2 along with this work; if not, write to the Free Software Foundation,
++ * Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
++ *
++ * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
++ * or visit www.oracle.com if you need additional information or have any
++ * questions.
++ */
++
++/*
++ * @test id=test1
++ * @bug 8298935
++ * @summary CMoveI for underflow protection of the limit did not compute a type that was precise enough.
++ *          This lead to dead data but zero-trip-guard control did not die -> "malformed control flow".
++ * @run main/othervm
++ *      -XX:CompileCommand=compileonly,compiler.loopopts.TestUnrollLimitPreciseType::test1
++ *      -XX:CompileCommand=dontinline,compiler.loopopts.TestUnrollLimitPreciseType::*
++ *      -XX:MaxVectorSize=64
++ *      -Xcomp
++ *      -XX:+UnlockExperimentalVMOptions -XX:PerMethodSpecTrapLimit=0 -XX:PerMethodTrapLimit=0
++ *      compiler.loopopts.TestUnrollLimitPreciseType test1
++ */
++
++/*
++ * @test id=test2
++ * @bug 8298935
++ * @summary CMoveI for underflow protection of the limit did not compute a type that was precise enough.
++ *          This lead to dead data but zero-trip-guard control did not die -> "malformed control flow".
++ * @run main/othervm
++ *      -XX:CompileCommand=compileonly,compiler.loopopts.TestUnrollLimitPreciseType::*
++ *      -Xcomp
++ *      compiler.loopopts.TestUnrollLimitPreciseType test2
++ */
++
++
++package compiler.loopopts;
++
++public class TestUnrollLimitPreciseType {
++    static final int RANGE = 512;
++
++    public static void main(String args[]) {
++        if (args.length != 1) {
++            throw new RuntimeException("Need exactly one argument.");
++        }
++        if (args[0].equals("test1")) {
++            byte[] data = new byte[RANGE];
++            test1(data);
++        } else if (args[0].equals("test2")) {
++            test2();
++        } else {
++            throw new RuntimeException("Do not have: " + args[0]);
++        }
++    }
++
++    public static void test1(byte[] data) {
++        // Did not fully analyze this. But it is also unrolled, SuperWorded,
++        // and further unrolled with vectorlized post loop.
++        // Only seems to reproduce with avx512, and not with avx2.
++        for (int j = 192; j < RANGE; j++) {
++            data[j - 192] = (byte)(data[j] * 11);
++        }
++    }
++
++    static void test2() {
++        // Loop is SuperWord'ed.
++        // We unroll more afterwards, and so add vectorized post loop.
++        // But it turns out that the vectorized post loop is never entered.
++        // This lead to assert, because the zero-trip-guard did not collaspse,
++        // but the CastII with the trip count did die.
++        // Only seems to reproduce with avx512, and not with avx2.
++        double dArr[][] = new double[100][100];
++        for (int i = 2, j = 2; j < 68; j++) {
++            dArr[i][j] = 8;
++        }
++    }
++}
+--- /dev/null
++++ b/hotspot/test/compiler/rangechecks/TestRangeCheckLimits.java
+@@ -0,0 +1,158 @@
++/*
++ * Copyright (c) 2021, Oracle and/or its affiliates. All rights reserved.
++ * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
++ *
++ * This code is free software; you can redistribute it and/or modify it
++ * under the terms of the GNU General Public License version 2 only, as
++ * published by the Free Software Foundation.
++ *
++ * This code is distributed in the hope that it will be useful, but WITHOUT
++ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
++ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
++ * version 2 for more details (a copy is included in the LICENSE file that
++ * accompanied this code).
++ *
++ * You should have received a copy of the GNU General Public License version
++ * 2 along with this work; if not, write to the Free Software Foundation,
++ * Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
++ *
++ * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
++ * or visit www.oracle.com if you need additional information or have any
++ * questions.
++ */
++
++/*
++ * @test
++ * @bug 8262017
++ * @summary Dominator failure because ConvL2I node becomes TOP due to missing overflow/underflow handling in range check elimination
++ *          in PhaseIdealLoop::add_constraint().
++ * @run main/othervm -Xcomp -XX:-TieredCompilation -XX:CompileCommand=compileonly,compiler.rangechecks.TestRangeCheckLimits::*
++ *                   compiler.rangechecks.TestRangeCheckLimits
++ */
++
++ package compiler.rangechecks;
++
++ public class TestRangeCheckLimits {
++    static int a = 400;
++    static volatile int b;
++    static long lFld;
++    static int iFld;
++
++    public static void main(String[] k) {
++        // Test all cases in PhaseIdealLoop::add_constraint().
++        testPositiveCaseMainLoop();
++        testNegativeCaseMainLoop();
++        testPositiveCasePreLoop();
++        testNegativeCasePreLoop();
++    }
++
++    public static void testPositiveCaseMainLoop() {
++        int e, f, g = 0, h[] = new int[a];
++        double i[] = new double[a];
++        long j = 9;
++        Helper.init(h, 3);
++        for (e = 5; e < 154; e++) {
++            for (f = 1; f < 169; f += 2) {
++                b = e;
++            }
++            i[1] = b;
++            for (g = 8; g < 168; g += 2) {
++                j = g - 5;
++                if (j > Integer.MAX_VALUE - 1) {
++                    switch (3) {
++                        case 3:
++                    }
++                }
++            }
++        }
++        if (g != 168) {
++            throw new RuntimeException("fail");
++        }
++        lFld = j;
++    }
++
++
++    public static void testPositiveCasePreLoop() {
++        int e, f, g = 0, h[] = new int[a];
++        double i[] = new double[a];
++        long j = 9;
++        Helper.init(h, 3);
++        for (e = 5; e < 154; e++) {
++            for (f = 1; f < 169; f += 2) {
++                b = e;
++            }
++            i[1] = b;
++            for (g = 8; g < 168; g += 2) {
++                j = g + 5;
++                if (j > 180) {
++                    switch (3) {
++                        case 3:
++                    }
++                }
++            }
++        }
++        if (g != 168) {
++            throw new RuntimeException("fail");
++        }
++        lFld = j;
++    }
++
++    public static void testNegativeCaseMainLoop() {
++        int e, f, g = 0, h[] = new int[a];
++        double i[] = new double[a];
++        long j = 9;
++        Helper.init(h, 3);
++        for (e = 5; e < 154; e++) {
++            for (f = 1; f < 169; f += 2) {
++                b = e;
++            }
++            i[1] = b;
++            for (g = 8; g < 168; g += 2) {
++                j = g;
++                if (j < 5) {
++                    switch (3) {
++                        case 3:
++                    }
++                }
++            }
++        }
++        if (g != 168) {
++            throw new RuntimeException("fail");
++        }
++        lFld = j;
++    }
++
++
++    public static void testNegativeCasePreLoop() {
++        int e, f, g = 0, h[] = new int[a];
++        double i[] = new double[a];
++        long j = 9;
++        Helper.init(h, 3);
++        for (e = 5; e < 154; e++) {
++            for (f = 1; f < 169; f += 2) {
++                b = e;
++            }
++            i[1] = b;
++            for (g = 168; g > 8; g -= 2) {
++                j = g - 5;
++                if (j > Integer.MAX_VALUE - 1) {
++                    switch (3) {
++                        case 3:
++                    }
++                }
++            }
++        }
++        if (g != 8) {
++            throw new RuntimeException("fail");
++        }
++        lFld = j;
++    }
++}
++
++class Helper {
++    public static void init(int[] a, int seed) {
++        for (int j = 0; j < a.length; j++) {
++            a[j] = (j % 2 == 0) ? seed + j : seed - j;
++        }
++    }
++}

@@ -1,3 +1,25 @@
+openjdk-8 (8u422-b05-1) unstable; urgency=medium
+
+  Upstream-provided “Notes on individual issues” as applicable:
+
+  core-libs/java.net:
+
+  JDK-8278067: Make HttpURLConnection Default Keep Alive Timeout Configurable
+  ===========================================================================
+  Two system properties have been added which control the keep alive
+  behaviour of HttpURLConnection in the case where the server does not
+  specify a keep alive time. These are:
+
+  * `http.keepAlive.time.server`
+  * `http.keepAlive.time.proxy`
+
+  which control the number of seconds before an idle connection to a
+  server or proxy will be closed, respectively. If the server or proxy
+  specifies a keep alive time in a "Keep-Alive" response header, this
+  will take precedence over the values of these properties.
+
+ -- Thorsten Glaser <tg@mirbsd.de>  Fri, 19 Jul 2024 21:29:27 +0200
+
 openjdk-8 (8u412-ga-1) unstable; urgency=medium
 
   Upstream-provided “Notes on individual issues” as applicable:

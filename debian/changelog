@@ -1,19 +1,47 @@
-openjdk-8 (8u412-ga-1~20.04.1) focal-security; urgency=medium
+openjdk-8 (8u422-b05-1~20.04) focal-security; urgency=medium
 
-  * Modify the previous changelog entry: add CVE information
+  * Upload to Ubuntu 20.04.
 
- -- Pushkar Kulkarni <pushkar.kulkarni@canonical.com>  Thu, 30 May 2024 11:33:26 +0530
+ -- Vladimir Petko <vladimir.petko@canonical.com>  Mon, 22 Jul 2024 09:59:24 +1200
 
-openjdk-8 (8u412-ga-1~20.04) focal-security; urgency=medium
+openjdk-8 (8u422-b05-1) unstable; urgency=medium
+
+  * New upstream release
+  * CVEs
+    - CVE-2024-21131
+    - CVE-2024-21138
+    - CVE-2024-21140
+    - CVE-2024-21144
+    - CVE-2024-21145
+    - CVE-2024-21147
+  * Security fixes
+    - JDK-8314794: Improve UTF8 String supports
+    - JDK-8319859: Better symbol storage
+    - JDK-8320097: Improve Image transformations
+    - JDK-8320548: Improved loop handling
+    - JDK-8322106: Enhance Pack 200 loading
+    - JDK-8323231: Improve array management
+    - JDK-8323390: Enhance mask blit functionality
+    - JDK-8324559: Improve 2D image handling
+    - JDK-8325600: Better symbol storage
+  * Other changes see
+    https://mail.openjdk.org/pipermail/jdk8u-dev/2024-July/018904.html
+  * Re-enable tests on noble/i386, the prerequisites were added back
+    with no coordination; disable on sid/{m68k,sh4} for same reason
+  * Overhaul way various control files are (re‑)generated
+  * Avoid default-jre being pulled in by B-D-ing on jdk-!headless again
+  * Upload sponsored by QVEST ⮡ dıgıtal
+
+ -- Thorsten Glaser <tg@mirbsd.de>  Sat, 20 Jul 2024 01:34:18 +0200
+
+openjdk-8 (8u412-ga-1) unstable; urgency=medium
 
   * New upstream release (Closes: #1069678)
   * CVEs
-    - CVE-2024-21011, 8319851: Improve exception logging.
-    - CVE-2024-21085, 8322114: Improve Pack 200 handling.
-    - CVE-2024-21068, 8322122: Enhance generation of addresses.
-    - CVE-2024-21094, 8317507: Already fixed in November 2023:
-        C2 compilation fails with "Exceeded _node_regs array".
-
+    - CVE-2024-21011
+    - CVE-2024-21085
+    - CVE-2024-21068
+    - CVE-2024-21094
   * Security fixes
     - JDK-8317507, JDK-8325348: C2 compilation fails
       with "Exceeded _node_regs array"
@@ -26,9 +54,6 @@ openjdk-8 (8u412-ga-1~20.04) focal-security; urgency=medium
   * Upload sponsored by QVEST ⮡ dıgıtal
   * Re-enable running tests by default except on noble/i386 (lacks prereqs)
   * Switch from pkg-config to pkgconf for bookworm/mantic+ (lintian)
-
-  [ Pushkar Kulkarni ]
-  * Upload to Ubuntu 20.04
 
  -- Thorsten Glaser <tg@mirbsd.de>  Tue, 23 Apr 2024 01:10:58 +0200
 

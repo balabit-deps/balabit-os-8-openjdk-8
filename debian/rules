@@ -65,7 +65,7 @@ endif
 
 # we know about:
 # wheezy jessie stretch buster bullseye bookworm trixie sid
-# precise trusty xenial bionic focal jammy (mantic) noble
+# precise trusty xenial bionic focal jammy (mantic) noble oracular
 
 ifneq (,$(filter $(distrel),wheezy precise trusty))
   is_default = no
@@ -97,10 +97,12 @@ shortver	= 8
 is_release		=
 is_release		= yes
 gh_project		= jdk8u
-gh_tag			= jdk8u412-ga
+#gh_tag			= jdk8u412-ga
+gh_tag			= jdk8u422-b05
 version_dash_buildnr	= $(subst ${gh_project},,${gh_tag})
-version_dash_buildnr	= 412-b08
-gh_tag_aarch32		= jdk8u412-ga-aarch32-20240419
+#version_dash_buildnr	= 412-b08
+# patched to get up to b05 (${UPSTREAM_PATCHES})
+gh_tag_aarch32		= jdk8u422-b04-aarch32-20240703
 package_version		= $(subst jdk,,${gh_tag})
 ifneq ($(is_release),yes)
   package_version	:= $(subst -,~,$(package_version))
@@ -151,11 +153,13 @@ ifneq (,$(filter $(distrel),precise wheezy))
   nocheck_profile =
   with_check = disabled running check on $(distrel)
 endif
-ifneq (,$(filter ${distrel},noble))
-  ifeq (${DEB_HOST_ARCH},i386)
+ifeq (,$(filter ${distrel},wheezy jessie stretch buster bullseye bookworm precise trusty xenial bionic focal jammy mantic noble oracular))
+  # Debian testing/sid
+  ifneq (,$(filter ${DEB_HOST_ARCH},m68k sh4))
+    # xfwm4 B-D for testing not available
     with_check = disabled running check on ${distrel}/${DEB_HOST_ARCH}
   endif
-  nocheck_profile = ${NULL} [!i386] <!nocheck>
+  nocheck_profile = ${NULL} [!m68k !sh4] <!nocheck>
 endif
 #with_check = disabled for this build
 
@@ -388,6 +392,7 @@ COMMON_PATCHES = \
 	sparc-inline-conflict.diff \
 	zero-sh.diff \
 	t64-dlsyms.diff \
+	jdk-8334502-time_t.diff \
 
 ifeq ($(derivative),Debian)
   COMMON_PATCHES += \
@@ -410,6 +415,7 @@ endif
 
 # set LIBARCH/aarch32 to arm
 ifneq (,$(filter $(DEB_HOST_ARCH), $(hotspot_aarch32_archs)))
+  UPSTREAM_PATCHES += b04-to-b05-hotspot.diff
   COMMON_PATCHES += \
 	aarch32.diff
 endif
@@ -629,31 +635,39 @@ ifneq (,$(filter ${distrel},wheezy jessie stretch buster bullseye precise trusty
 else
   bd_autotools += pkgconf,
 endif
-bd_bootstrap += \
-	openjdk-8-jdk-headless,
-#	openjdk-8-jdk | openjdk-7-jdk,
-ifeq (,$(filter $(distrel),wheezy jessie precise trusty))
-  bd_cross += \
-	openjdk-8-jdk-headless <cross>, dpkg-dev (>= 1.17.14),
-endif
 
 # for the testsuite
 bd_check = \
 	xvfb@nocheck@, xauth@nocheck@, xfonts-base@nocheck@, \
 	libgl1-mesa-dri@nocheck@, xfwm4@nocheck@, \
-	x11-xkb-utils@nocheck@, dbus-x11@nocheck@, \
-	openjdk-8-jre-headless@nocheck@ | default-jre-headless (>= 2:1.8)@nocheck@,
-dtd_check =
-# at least 4.2 b13 is now required, from stretch-backports
-  bd_check += jtreg (>> 4.2-b13-1~)@nocheck@,
-  dtd_check += jtreg (>> 4.2-b13-1~),
+	x11-xkb-utils@nocheck@, dbus-x11@nocheck@,
+dtc_check =
+# at least 4.2 b13 is now required
+bd_check += jtreg (>> 4.2-b13-1~)@nocheck@,
+dtc_check += jtreg (>> 4.2-b13-1~),
 ifeq (,$(filter $(distrel),wheezy jessie stretch precise trusty xenial))
   bd_check += libasmtools-java@nocheck@,
-  dtd_check += libasmtools-java,
+  dtc_check += libasmtools-java,
 endif
-# trailing comma for bd_check but not dtd_check
 bd_check += testng@nocheck@,
-dtd_check += testng
+dtc_check += testng,
+
+ifeq (1,1)
+  # avoid default-jre being pulled in
+  bd_bootstrap += openjdk-8-jdk,
+else ifeq (1,1)
+  bd_bootstrap += openjdk-8-jdk-headless,
+else
+  bd_bootstrap += openjdk-8-jdk-headless | openjdk-8-jdk | openjdk-7-jdk,
+  ifeq (,$(filter ${distrel},wheezy jessie precise trusty))
+    bd_cross += openjdk-8-jdk-headless <cross>,
+  endif
+  bd_check += openjdk-8-jre-headless@nocheck@ | default-jre-headless (>= 2:1.8)@nocheck@,
+endif
+ifeq (,$(filter ${distrel},wheezy jessie precise trusty))
+  bd_cross += dpkg-dev (>= 1.17.14),
+endif
+
 # elide B-D if known to not test
 ifneq ($(with_check),yes)
 bd_check =
@@ -870,7 +884,7 @@ debian/control: debian/control.in debian/rules
 	@cp -p debian/control debian/control.old
 	echo $(dh_compat) >debian/compat
 	sed \
-	      -e 's/@dtd_check@/$(strip $(dtd_check))/g' \
+	      -e 's/@dtc_check@/$(strip $(dtc_check))/g' \
 	    debian/tests/control.in >debian/tests/control
 	sed \
 	      -e 's/@basename@/$(basename)/g' \
@@ -1914,8 +1928,10 @@ endif
 	dh_gencontrol -a $(nodemo) $(nojrez) \
 		-- $(control_vars)
 	dh_md5sums -a $(nodemo) $(nojrez)
+ifeq (0,1)
 	: # FIXME: something seems to hang here ...
 	-ps afx
+endif
 	NO_PKG_MANGLE=1 \
 	dh_builddeb -a $(nodemo) $(nojrez) #$(bd_options)
 
