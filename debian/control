@@ -1,7 +1,8 @@
 Source: openjdk-8
 Section: java
 Priority: optional
-Maintainer: Java Maintenance <pkg-java-maintainers@lists.alioth.debian.org>
+Maintainer: Ubuntu Developers <ubuntu-devel-discuss@lists.ubuntu.com>
+XSBC-Original-Maintainer: Java Maintenance <pkg-java-maintainers@lists.alioth.debian.org>
 Uploaders: Thorsten Glaser <tg@mirbsd.de>
 Build-Depends: openjdk-8-jdk, debhelper (>= 11), quilt,
  m4, lsb-release, zip, unzip, sharutils, gawk, cpio, procps, wdiff, tzdata,

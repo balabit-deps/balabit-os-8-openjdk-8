@@ -1,8 +1,31 @@
-openjdk-8 (8u422-b05-1~20.04) focal-security; urgency=medium
+openjdk-8 (8u432-ga~us1-0ubuntu2~20.04) focal-security; urgency=medium
 
-  * Upload to Ubuntu 20.04.
+  * d/control: regenerate for Ubuntu 20.04
+  * Upload to Ubuntu 20.04
 
- -- Vladimir Petko <vladimir.petko@canonical.com>  Mon, 22 Jul 2024 09:59:24 +1200
+ -- Pushkar Kulkarni <pushkar.kulkarni@canonical.com>  Wed, 30 Oct 2024 14:54:35 +0100
+
+openjdk-8 (8u432-ga~us1-0ubuntu1) plucky; urgency=medium
+
+  * OpenJDK 8u432 release
+    - CVEs
+      + CVE-2024-21208, 8328286: Enhance HTTP client
+      + CVE-2024-21210, 8328544: Improve handling of vectorization
+      + CVE-2024-21217, 8331446: Improve deserialization support
+      + CVE-2024-21235, 8332644: Improve graph optimizations
+
+  [ Thorsten Glaser ]
+  * Include /usr/share/dpkg/buildflags.mk only if it exists
+  * Set JT_JAVA if needed to not need default-jre-headless
+
+ -- Pushkar Kulkarni <pushkar.kulkarni@canonical.com>  Mon, 28 Oct 2024 14:47:05 +0100
+
+openjdk-8 (8u422-b05-1ubuntu1) oracular; urgency=medium
+
+  * d/rules: Include /usr/share/dpkg/buildflags.mk to avoid configure
+    failure due to the undefined variables (LP: #2073806).
+
+ -- Vladimir Petko <vladimir.petko@canonical.com>  Tue, 23 Jul 2024 11:17:18 +1200
 
 openjdk-8 (8u422-b05-1) unstable; urgency=medium
 

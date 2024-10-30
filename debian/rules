@@ -4,6 +4,10 @@
 # Uncomment this to turn on verbose mode.
 #export DH_VERBOSE=1
 
+ifneq (,$(wildcard /usr/share/dpkg/buildflags.mk))
+include /usr/share/dpkg/buildflags.mk
+endif
+
 unexport LANG
 export LC_ALL=C
 unexport LANGUAGE
@@ -98,7 +102,7 @@ is_release		=
 is_release		= yes
 gh_project		= jdk8u
 #gh_tag			= jdk8u412-ga
-gh_tag			= jdk8u422-b05
+gh_tag			= jdk8u432-ga
 version_dash_buildnr	= $(subst ${gh_project},,${gh_tag})
 #version_dash_buildnr	= 412-b08
 # patched to get up to b05 (${UPSTREAM_PATCHES})
@@ -1189,10 +1193,24 @@ ifneq (,$(filter $(VMNAME), $(with_jtreg_check)))
 	fi
 
 	@echo "BEGIN jtreg"
-	$(TIME) $(MAKE) -f debian/rules -k jtregcheck \
-		$(if $(TEST_SUITES),TEST_SUITES="$(TEST_SUITES)") \
-		JTREG_OPTIONS='$(VMARGS)' \
-		2>&1 | tee jtreg-test-output/jtreg_output-$(VMNAME)
+	( \
+		if jtreg -version; then \
+			echo >&2 "I: jtreg works with default settings"; \
+		elif JT_JAVA=${BOOTJDK_HOME} jtreg -version; then \
+			echo >&2 "I: using bootstrap JRE for jtreg"; \
+			JT_JAVA=${BOOTJDK_HOME}; \
+			export JT_JAVA; \
+		elif JT_JAVA=/usr jtreg -version; then \
+			echo >&2 "I: using system JRE for jtreg"; \
+			JT_JAVA=/usr; \
+			export JT_JAVA; \
+		else \
+			echo >&2 "E: jtreg does not work?!"; \
+		fi; \
+		$(TIME) $(MAKE) -f debian/rules -k jtregcheck \
+		    $(if $(TEST_SUITES),TEST_SUITES="$(TEST_SUITES)") \
+		    JTREG_OPTIONS='$(VMARGS)' \
+	) 2>&1 | tee jtreg-test-output/jtreg_output-$(VMNAME)
 	@echo "END jtreg"
 
 	if [ -f $(builddir)/$(sdkimg)/jre/lib/security/java.security.install ]; then \
