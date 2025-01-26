@@ -102,11 +102,11 @@ is_release		=
 is_release		= yes
 gh_project		= jdk8u
 #gh_tag			= jdk8u412-ga
-gh_tag			= jdk8u432-ga
+gh_tag			= jdk8u442-b06
 version_dash_buildnr	= $(subst ${gh_project},,${gh_tag})
 #version_dash_buildnr	= 412-b08
 # patched to get up to b05 (${UPSTREAM_PATCHES})
-gh_tag_aarch32		= jdk8u422-b04-aarch32-20240703
+gh_tag_aarch32		= jdk8u442-b06-aarch32-20250125
 package_version		= $(subst jdk,,${gh_tag})
 ifneq ($(is_release),yes)
   package_version	:= $(subst -,~,$(package_version))
@@ -419,7 +419,6 @@ endif
 
 # set LIBARCH/aarch32 to arm
 ifneq (,$(filter $(DEB_HOST_ARCH), $(hotspot_aarch32_archs)))
-  UPSTREAM_PATCHES += b04-to-b05-hotspot.diff
   COMMON_PATCHES += \
 	aarch32.diff
 endif

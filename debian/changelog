@@ -1,9 +1,18 @@
-openjdk-8 (8u432-ga~us1-0ubuntu2~20.04) focal-security; urgency=medium
+openjdk-8 (8u442-b06~us1-0ubuntu1~20.04) focal-security; urgency=medium
 
-  * d/control: regenerate for Ubuntu 20.04
-  * Upload to Ubuntu 20.04
+  * Upload to Ubuntu 20.04.
 
- -- Pushkar Kulkarni <pushkar.kulkarni@canonical.com>  Wed, 30 Oct 2024 14:54:35 +0100
+ -- Vladimir Petko <vladimir.petko@canonical.com>  Sun, 26 Jan 2025 20:38:16 +1300
+
+openjdk-8 (8u442-b06~us1-0ubuntu1) plucky; urgency=medium
+
+  * OpenJDK 8u442 release, build 6. Release notes:
+    https://mail.openjdk.org/pipermail/jdk8u-dev/2025-January/019658.html
+
+   [ Emilio Pozuelo Monfort ]
+   * Drop b04-to-b05-hotspot.diff, no longer needed. Fixes FTBFS on armhf.
+
+ -- Vladimir Petko <vladimir.petko@canonical.com>  Sat, 25 Jan 2025 23:18:07 +1300
 
 openjdk-8 (8u432-ga~us1-0ubuntu1) plucky; urgency=medium
 
