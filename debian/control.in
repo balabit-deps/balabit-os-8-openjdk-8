@@ -3,11 +3,15 @@ Section: java
 Priority: optional
 Maintainer: Ubuntu Developers <ubuntu-devel-discuss@lists.ubuntu.com>
 XSBC-Original-Maintainer: Java Maintenance <pkg-java-maintainers@lists.alioth.debian.org>
-Uploaders: Thorsten Glaser <tg@mirbsd.de>
-Build-Depends: @bd_bootstrap@ @bd_debhelper@ quilt,
- m4, lsb-release, zip, unzip, sharutils, gawk, cpio, procps, wdiff, tzdata,
- @bd_check@ @bd_autotools@ @bd_ant@ @bd_fastjar@ @bd_gcc@ @bd_openjdk@ @bd_zero@ @bd_syslibs@ @bd_pulsejava@ @bd_systemtap@ @bd_nss@ @bd_cross@ time
-Standards-Version: 4.6.2
+Uploaders: Thorsten Glaser <tg@mirbsd.de>,
+ Emilio Pozuelo Monfort <pochu@debian.org>
+Build-Depends: @bd_bootstrap@ quilt,
+ m4, lsb-release, sharutils, gawk, procps, wdiff, tzdata, @bd_debhelper@
+ cpio, zip, unzip, @bd_autotools@ @bd_check@
+ @bd_ant@ @bd_fastjar@ @bd_gcc@ @bd_syslibs@
+ @bd_openjdk@ @bd_zero@ @bd_pulsejava@ @bd_systemtap@ @bd_nss@ @bd_cross@ time
+Standards-Version: 4.7.0
+Rules-Requires-Root: binary-targets
 Homepage: https://openjdk.org/projects/jdk8u/
 VCS-git: https://evolvis.org/anonscm/git/alioth/openjdk-8.git -b master
 VCS-Browser: https://evolvis.org/plugins/scmgit/cgi-bin/gitweb.cgi?p=alioth/openjdk-8.git;a=shortlog;h=refs/heads/master

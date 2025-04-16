@@ -1,8 +1,8 @@
-# DP: Add support for zero architectures alpha, m68k, mips*, sh4
+# DP: Add support for zero architectures alpha, [DEL:]m68k[:DEL], mips*, sh4
 
 --- a/common/autoconf/flags.m4
 +++ b/common/autoconf/flags.m4
-@@ -908,6 +908,8 @@ AC_DEFUN_ONCE([FLAGS_SETUP_COMPILER_FLAG
+@@ -922,6 +922,8 @@ AC_DEFUN_ONCE([FLAGS_SETUP_COMPILER_FLAG
      *)
        ZERO_ARCHFLAG="${COMPILER_TARGET_BITS_FLAG}${OPENJDK_TARGET_CPU_BITS}"
    esac
@@ -26,22 +26,10 @@
      arm*)
        VAR_CPU=arm
        VAR_CPU_ARCH=arm
-@@ -54,6 +60,54 @@ AC_DEFUN([PLATFORM_EXTRACT_VARS_FROM_CPU
+@@ -54,6 +60,42 @@ AC_DEFUN([PLATFORM_EXTRACT_VARS_FROM_CPU
        VAR_CPU_BITS=64
        VAR_CPU_ENDIAN=little
        ;;
-+    ia64)
-+      VAR_CPU=ia64
-+      VAR_CPU_ARCH=ia64
-+      VAR_CPU_BITS=64
-+      VAR_CPU_ENDIAN=little
-+      ;;
-+    m68k)
-+      VAR_CPU=m68k
-+      VAR_CPU_ARCH=m68k
-+      VAR_CPU_BITS=32
-+      VAR_CPU_ENDIAN=big
-+      ;;
 +    mips)
 +      VAR_CPU=mips
 +      VAR_CPU_ARCH=mips
@@ -81,7 +69,7 @@
      powerpc)
        VAR_CPU=ppc
        VAR_CPU_ARCH=ppc
-@@ -72,6 +126,12 @@ AC_DEFUN([PLATFORM_EXTRACT_VARS_FROM_CPU
+@@ -72,6 +114,12 @@ AC_DEFUN([PLATFORM_EXTRACT_VARS_FROM_CPU
        VAR_CPU_BITS=64
        VAR_CPU_ENDIAN=little
        ;;
@@ -94,7 +82,7 @@
      s390)
        VAR_CPU=s390
        VAR_CPU_ARCH=s390
-@@ -381,6 +441,10 @@ AC_DEFUN([PLATFORM_SETUP_LEGACY_VARS],
+@@ -381,6 +429,10 @@ AC_DEFUN([PLATFORM_SETUP_LEGACY_VARS],
  
    # ZERO_ARCHDEF is used to enable architecture-specific code
    case "${OPENJDK_TARGET_CPU}" in

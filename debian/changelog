@@ -1,40 +1,84 @@
-openjdk-8 (8u442-b06~us1-0ubuntu1~20.04) focal-security; urgency=medium
+openjdk-8 (8u452-ga~us1-0ubuntu1~20.04) focal-security; urgency=medium
 
-  * Upload to Ubuntu 20.04.
+  * OpenJDK 8u452 release. Release notes:
+    https://mail.openjdk.org/pipermail/jdk8u-dev/2025-April/019989.html
+    - CVEs:
+      + CVE-2025-21587
+      + CVE-2025-30691
+      + CVE-2025-30698
 
- -- Vladimir Petko <vladimir.petko@canonical.com>  Sun, 26 Jan 2025 20:38:16 +1300
+  [ Pushkar Kulkarni ]
+  * d/rules: update gh tags for 8u452
+  * d/control: regenerate for Ubuntu 20.04
+  * Upload to Ubuntu 20.04
 
-openjdk-8 (8u442-b06~us1-0ubuntu1) plucky; urgency=medium
+ -- Pushkar Kulkarni <pushkar.kulkarni@canonical.com>  Wed, 16 Apr 2025 16:03:22 +0530
 
-  * OpenJDK 8u442 release, build 6. Release notes:
+openjdk-8 (8u442-ga-2) unstable; urgency=low
+
+  * Add explicit R³: binary-targets to work around dpkg 1.22.13 changing
+    default behaviour, violating Policy §5.6.31, leading to binary-*
+    target not called in separate make run any more which some wildcard
+    matches rely on, to get the correct files (Closes: #1095746)
+
+ -- Thorsten Glaser <tg@mirbsd.de>  Wed, 12 Feb 2025 02:55:46 +0100
+
+openjdk-8 (8u442-ga-1) unstable; urgency=low
+
+  * New upstream release
+  * Other changes see
     https://mail.openjdk.org/pipermail/jdk8u-dev/2025-January/019658.html
+  * Drop mantic, add plucky
+  * Add pochu to Uploaders
+  * Bump testing/sid GCC to 14 (Closes: #1092660);
+    for oracular/plucky as well, noble is kept at GCC 13
+  * Since xfwm4 is available on every arch we build again, drop exclusion
+  * Drop remnants of IA64 support (long gone from Linux)
+  * Remove m68k support: broken, needs rebootstrapping after the ABI change
+    anyway, at which point openjdk-8 might not be needed at all
+  * Add patch for FTBFS with GCC 14’s strictened types
+  * Bump Policy (nothing to do)
 
-   [ Emilio Pozuelo Monfort ]
-   * Drop b04-to-b05-hotspot.diff, no longer needed. Fixes FTBFS on armhf.
+ -- Thorsten Glaser <tg@mirbsd.de>  Mon, 10 Feb 2025 01:11:43 +0100
 
- -- Vladimir Petko <vladimir.petko@canonical.com>  Sat, 25 Jan 2025 23:18:07 +1300
+openjdk-8 (8u432-b06-2) unstable; urgency=medium
 
-openjdk-8 (8u432-ga~us1-0ubuntu1) plucky; urgency=medium
+  * Drop b04-to-b05-hotspot.diff, no longer needed. Fixes FTBFS on armhf.
 
-  * OpenJDK 8u432 release
-    - CVEs
-      + CVE-2024-21208, 8328286: Enhance HTTP client
-      + CVE-2024-21210, 8328544: Improve handling of vectorization
-      + CVE-2024-21217, 8331446: Improve deserialization support
-      + CVE-2024-21235, 8332644: Improve graph optimizations
+ -- Emilio Pozuelo Monfort <pochu@debian.org>  Sun, 03 Nov 2024 12:33:56 +0100
+
+openjdk-8 (8u432-b06-1) unstable; urgency=medium
+
+  [ Vladimir Petko ]
+  * Include /usr/share/dpkg/buildflags.mk to work around *buntu
+    breaking package builds without it (Closes: #1076752)
 
   [ Thorsten Glaser ]
   * Include /usr/share/dpkg/buildflags.mk only if it exists
   * Set JT_JAVA if needed to not need default-jre-headless
 
- -- Pushkar Kulkarni <pushkar.kulkarni@canonical.com>  Mon, 28 Oct 2024 14:47:05 +0100
+  [ Emilio Pozuelo Monfort ]
+  * New upstream release.
+  * CVEs
+    - CVE-2024-21208
+    - CVE-2024-21210
+    - CVE-2024-21217
+    - CVE-2024-21235
+  * Security fixes
+    - JDK-8290367, JDK-8332643: Update default value and extend the scope
+      of com.sun.jndi.ldap.object.trustSerialData system property
+    - JDK-8313626, JDK-8307769: C2 crash due to unexpected
+      exception control flow
+    - JDK-8328286: Enhance HTTP client
+    - JDK-8328544: Improve handling of vectorization
+    - JDK-8328726: Better Kerberos support
+    - JDK-8331446: Improve deserialization support
+    - JDK-8332644: Improve graph optimizations
+    - JDK-8335713: Enhance vectorization analysis
+  * Other changes see
+    https://mail.openjdk.org/pipermail/jdk8u-dev/2024-October/019414.html
 
-openjdk-8 (8u422-b05-1ubuntu1) oracular; urgency=medium
-
-  * d/rules: Include /usr/share/dpkg/buildflags.mk to avoid configure
-    failure due to the undefined variables (LP: #2073806).
-
- -- Vladimir Petko <vladimir.petko@canonical.com>  Tue, 23 Jul 2024 11:17:18 +1200
+ -- Emilio Pozuelo Monfort <pochu@debian.org>  Fri, 01 Nov 2024 22:24:27 +0100
 
 openjdk-8 (8u422-b05-1) unstable; urgency=medium
 

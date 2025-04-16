@@ -41,7 +41,7 @@ Copyright:
 
 OpenJDK:
     Copyright © 1996-2007 Sun Microsystems, Inc.
-    Copyright © 1996-2024 Oracle and/or its affiliates.
+    Copyright © 1994-2024 Oracle and/or its affiliates.
     For third party copyrights see below (copies from the third party readme).
     Portions Copyright © 1993-2014 International Business Machines Corp.
     Portions Copyright © 1999-2005 The Apache Software Foundation
@@ -76,6 +76,7 @@ Packaging:
     Copyright © 2007-2014 Canonical Ltd.
     Copyright © 2021, 2022 mirabilos and ⮡ tarent solutions GmbH
     Copyright © 2023, 2024 mirabilos and Qvest Digital AG
+    Copyright © 2025 mirabilos <tg@debian.org>
 
 SipHash:
     Copyright © Copyright (c) 2012-2014 Daniel J. Bernstein <djb@cr.yp.to>
@@ -1969,25 +1970,6 @@ claims in such list are, in fact, Essential Claims.]
 -------------------------------------------------------------------------------
 
 ===============================================================================
-
-JAMVM:
-
-  Copyright (C) 2003, 2004, 2005, 2006, 2007, 2009, 2010
-  Robert Lougher <rob@jamvm.org.uk>.
-
-  This program is free software; you can redistribute it and/or
-  modify it under the terms of the GNU General Public License
-  as published by the Free Software Foundation; either version 2,
-  or (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program; if not, write to the Free Software
-  Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 
 debian/dbg8.py:
 # Copyright 2016, Red Hat and individual contributors

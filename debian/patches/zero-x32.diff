@@ -24,7 +24,7 @@
        ;;
      i?86)
        VAR_CPU=x86
-@@ -455,7 +462,13 @@ AC_DEFUN([PLATFORM_SETUP_LEGACY_VARS],
+@@ -437,7 +444,13 @@ AC_DEFUN([PLATFORM_SETUP_LEGACY_VARS],
      ppc64)   ZERO_ARCHDEF=PPC64 ;;
      s390*)   ZERO_ARCHDEF=S390  ;;
      sparc*)  ZERO_ARCHDEF=SPARC ;;
@@ -52,7 +52,7 @@
      static  Elf32_Half running_arch_code=EM_IA_64;
 --- a/jdk/make/gensrc/GensrcX11Wrappers.gmk
 +++ b/jdk/make/gensrc/GensrcX11Wrappers.gmk
-@@ -91,9 +91,11 @@ ifneq ($(COMPILE_TYPE), cross)
+@@ -87,9 +87,11 @@ ifneq ($(COMPILE_TYPE), cross)
  	$(TOOL_WRAPPERGENERATOR) $(@D) $(GENSRC_SIZER_DIR)/xlibtypes.txt "sizer" $*
  
    # use -m32/-m64 only if the compiler supports it

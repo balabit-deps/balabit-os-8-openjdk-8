@@ -2,7 +2,7 @@
 
 --- a/common/autoconf/flags.m4
 +++ b/common/autoconf/flags.m4
-@@ -645,7 +645,13 @@ AC_DEFUN_ONCE([FLAGS_SETUP_COMPILER_FLAG
+@@ -659,7 +659,13 @@ AC_DEFUN_ONCE([FLAGS_SETUP_COMPILER_FLAG
    CCXXFLAGS_JDK="$CCXXFLAGS_JDK -D$OPENJDK_TARGET_OS_UPPERCASE"
  
    # Setup target CPU

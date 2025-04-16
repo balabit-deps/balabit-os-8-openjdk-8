@@ -4,15 +4,15 @@ openjdk-8 for Debian/Ubuntu
 The OpenJDK build is configured --with-additional-vms to build with
 different virtual machines.  The original implementation of the hotspot
 VM is only available on the amd64, i386, lpia and sparc architectures.
-Other VM's: Zero, providing a byte code interpreter for every architecture.
+Other VM: Zero, providing a byte code interpreter for every architecture.
 
 To use a different VM other than the default, use
 
-	java -jamvm|-zero
+	java -zero
 
 or for the java tools, use:
 
-	<tool name> -J-jamvm|-J-zero
+	<tool name> -J-zero
 
 To change the default permanently, edit /etc/java-8-openjdk/jvm.cfg.
 

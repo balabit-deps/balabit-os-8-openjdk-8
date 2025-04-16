@@ -1,3 +1,227 @@
+openjdk-8 (8u442-ga-1) unstable; urgency=low
+
+  Upstream-provided “Notes on individual issues” as applicable:
+
+  core-libs/java.util.jar:
+
+  JDK-8335912/JDK-8337499: Add an operation mode to the jar command when
+                           extracting to not overwriting existing files
+  ======================================================================
+  In previous OpenJDK releases, when the jar tool extracted files from
+  an archive, it would overwrite any existing files with the same name
+  in the target directory. With this release, a new option ('-k') may be
+  specified so that existing files are not overwritten.
+
+  The option may be specified as in the following example:
+
+  * jar xkf foo.jar
+
+  By default, the old behaviour remains in place and files will be
+  overwritten.
+
+ -- Thorsten Glaser <tg@mirbsd.de>  Sun, 09 Feb 2025 20:41:52 +0100
+
+openjdk-8 (8u432-b06-1) unstable; urgency=medium
+
+  Upstream-provided “Notes on individual issues” as applicable:
+
+  security-libs/javax.net.ssl:
+
+  JDK-8279164: Disable TLS_ECDH_* cipher suites
+  =============================================
+  The TLS_ECDH cipher suites do not preserve forward secrecy and are
+  rarely used in practice. With this release, they are disabled by
+  adding "ECDH" to the `jdk.tls.disabledAlgorithms` security property in
+  the `java.security` configuration file. Attempts to use these suites
+  with this release will result in a `SSLHandshakeException` being
+  thrown. Note that ECDH cipher suites which use RC4 were already
+  disabled prior to this change.
+
+  Users can, *at their own risk*, remove this restriction by modifying
+  the `java.security` configuration file (or override it by using the
+  `java.security.properties` system property) so "ECDH" is no longer
+  listed in the `jdk.tls.disabledAlgorithms` security property.
+
+  This change has no effect on TLS_ECDHE cipher suites, which remain
+  enabled by default.
+
+  JDK-8337664: Distrust TLS server certificates issued after Oct 2024 and
+               anchored by Entrust Root CAs
+  JDK-8341059: Change Entrust TLS distrust date to November 12, 2024
+  =======================================================================
+  In accordance with similar plans recently announced by Google and
+  Mozilla, the JDK will not trust Transport Layer Security (TLS)
+  certificates issued after the 11th of November 2024 which are anchored
+  by Entrust root certificates.  This includes certificates branded as
+  AffirmTrust, which are managed by Entrust.
+
+  Certificates issued on or before November 11th, 2024 will continue to
+  be trusted until they expire.
+
+  If a server's certificate chain is anchored by an affected
+  certificate, attempts to negotiate a TLS session will fail with an
+  Exception that indicates the trust anchor is not trusted. For example,
+
+  "TLS server certificate issued after 2024-11-11 and anchored by a
+  distrusted legacy Entrust root CA: CN=Entrust.net Certification
+  Authority (2048), OU=(c) 1999 Entrust.net Limited,
+  OU=www.entrust.net/CPS_2048 incorp. by ref. (limits liab.),
+  O=Entrust.net"
+
+  To check whether a certificate in a JDK keystore is affected by this
+  change, you can the `keytool` utility:
+
+  keytool -v -list -alias <your_server_alias> -keystore <keystore_filename>
+
+  If any of the certificates in the chain are affected by this change,
+  then you will need to update the certificate or contact the
+  organisation responsible for managing the certificate.
+
+  These restrictions apply to the following Entrust root certificates
+  included in the JDK:
+
+  Alias name: entrustevca [jdk]
+  CN=Entrust Root Certification Authority
+  OU=(c) 2006 Entrust, Inc.
+  OU=www.entrust.net/CPS is incorporated by reference
+  O=Entrust, Inc.
+  C=US
+  SHA256: 73:C1:76:43:4F:1B:C6:D5:AD:F4:5B:0E:76:E7:27:28:\
+          7C:8D:E5:76:16:C1:E6:E6:14:1A:2B:2C:BC:7D:8E:4C
+
+  Alias name: entrustrootcaec1 [jdk]
+  CN=Entrust Root Certification Authority - EC1
+  OU=(c) 2012 Entrust, Inc. - for authorized use only
+  OU=See www.entrust.net/legal-terms
+  O=Entrust, Inc.
+  C=US
+  SHA256: 02:ED:0E:B2:8C:14:DA:45:16:5C:56:67:91:70:0D:64:\
+          51:D7:FB:56:F0:B2:AB:1D:3B:8E:B0:70:E5:6E:DF:F5
+
+  Alias name: entrustrootcag2 [jdk]
+  CN=Entrust Root Certification Authority - G2
+  OU=(c) 2009 Entrust, Inc. - for authorized use only
+  OU=See www.entrust.net/legal-terms
+  O=Entrust, Inc.
+  C=US
+  SHA256: 43:DF:57:74:B0:3E:7F:EF:5F:E4:0D:93:1A:7B:ED:F1:\
+          BB:2E:6B:42:73:8C:4E:6D:38:41:10:3D:3A:A7:F3:39
+
+  Alias name: entrustrootcag4 [jdk]
+  CN=Entrust Root Certification Authority - G4
+  OU=(c) 2015 Entrust, Inc. - for authorized use only
+  OU=See www.entrust.net/legal-terms
+  O=Entrust, Inc.
+  C=US
+  SHA256: DB:35:17:D1:F6:73:2A:2D:5A:B9:7C:53:3E:C7:07:79:\
+          EE:32:70:A6:2F:B4:AC:42:38:37:24:60:E6:F0:1E:88
+
+  Alias name: entrust2048ca [jdk]
+  CN=Entrust.net Certification Authority (2048)
+  OU=(c) 1999 Entrust.net Limited
+  OU=www.entrust.net/CPS_2048 incorp. by ref. (limits liab.)
+  O=Entrust.net
+  SHA256: 6D:C4:71:72:E0:1C:BC:B0:BF:62:58:0D:89:5F:E2:B8:\
+          AC:9A:D4:F8:73:80:1E:0C:10:B9:C8:37:D2:1E:B1:77
+
+  Alias name: affirmtrustcommercialca [jdk]
+  CN=AffirmTrust Commercial
+  O=AffirmTrust
+  C=US
+  SHA256: 03:76:AB:1D:54:C5:F9:80:3C:E4:B2:E2:01:A0:EE:7E:\
+          EF:7B:57:B6:36:E8:A9:3C:9B:8D:48:60:C9:6F:5F:A7
+
+  Alias name: affirmtrustnetworkingca [jdk]
+  CN=AffirmTrust Networking
+  O=AffirmTrust
+  C=US
+  SHA256: 0A:81:EC:5A:92:97:77:F1:45:90:4A:F3:8D:5D:50:9F:\
+          66:B5:E2:C5:8F:CD:B5:31:05:8B:0E:17:F3:F0B4:1B
+
+  Alias name: affirmtrustpremiumca [jdk]
+  CN=AffirmTrust Premium
+  O=AffirmTrust
+  C=US
+  SHA256: 70:A7:3F:7F:37:6B:60:07:42:48:90:45:34:B1:14:82:\
+          D5:BF:0E:69:8E:CC:49:8D:F5:25:77:EB:F2:E9:3B:9A
+
+  Alias name: affirmtrustpremiumeccca [jdk]
+  CN=AffirmTrust Premium ECC
+  O=AffirmTrust
+  C=US
+  SHA256: BD:71:FD:F6:DA:97:E4:CF:62:D1:64:7A:DD:25:81:B0:\
+          7D:79:AD:F8:39:7E:B4:EC:BA:9C:5E:84:88:82:14:23
+
+  Users can, *at their own risk*, remove this restriction by modifying
+  the `java.security` configuration file (or override it by using the
+  `java.security.properties` system property) so "ENTRUST_TLS" is no
+  longer listed in the `jdk.security.caDistrustPolicies` security
+  property.
+
+  client-libs:
+
+  JDK-8307779: Relax the java.awt.Robot specification
+  ===================================================
+  This release of OpenJDK 8 updates to the latest maintenance release of
+  the Java 8 specification. This relaxes the specification of three
+  methods in the `java.awt.Robot` class - `mouseMove(int,int)`,
+  `getPixelColor(int,int)` and `createScreenCapture(Rectangle)` - to
+  allow these methods to fail when the desktop environment does not
+  permit moving the mouse pointer or capturing screen content.
+
+  core-libs/javax.naming:
+
+  JDK-8290367, JDK-8332643: Update default value and extend the scope of
+                            com.sun.jndi.ldap.object.trustSerialData
+                            system property
+  ======================================================================
+  With this OpenJDK release, the JDK implementation of the LDAP provider
+  no longer supports the deserialisation of Java objects by
+  default. This is achieved by the system property
+  `com.sun.jndi.ldap.object.trustSerialData` being set to `false` by
+  default.
+
+  Note that this release also increases the scope of the
+  `com.sun.jndi.ldap.object.trustSerialData` to cover the reconstruction
+  of RMI remote objects from the `javaRemoteLocation` LDAP attribute.
+
+  The result of this change is that transparent deserialisation of Java
+  objects will require an explicit opt-in. Applications that wish to
+  reconstruct Java objects and RMI stubs from LDAP attributes will need
+  to set the `com.sun.jndi.ldap.object.trustSerialData` to `true`.
+
+  core-libs/java.net:
+
+  JDK-8328286: Enhance HTTP client
+  ================================
+  This OpenJDK release limits the maximum header field size accepted by
+  the HTTP client within the JDK for all supported versions of the HTTP
+  protocol. The header field size is computed as the sum of the size of
+  the uncompressed header name, the size of the uncompressed header
+  value and a overhead of 32 bytes for each field section line. If a
+  peer sends a field section that exceeds this limit, a
+  `java.net.ProtocolException` will be raised.
+
+  This release also introduces a new system property,
+  `jdk.http.maxHeaderSize`. This property can be used to alter the
+  maximum header field size (in bytes) or disable it by setting the
+  value to zero or a negative value. The default value is 393,216 bytes
+  or 384kB.
+
+  core-libs/java.util.jar:
+
+  JDK-8193682: Infinite loop in ZipOutputStream.close()
+  =====================================================
+  In previous releases, the `DeflaterOutputStream.close()`,
+  `GZIPOutputStream.finish()` and `ZipOutputStream.closeEntry()` methods
+  did not close the associated default JDK compressor when an exception
+  was thrown during closure.  With this release, the default compressor
+  is closed before propogating the Throwable up the stack. In the case
+  of `ZipOutputStream`, this only happens when the exception is not a
+  `ZipException`.
+
+ -- Thorsten Glaser <tg@mirbsd.de>  Sun, 09 Feb 2025 20:40:32 +0100
+
 openjdk-8 (8u422-b05-1) unstable; urgency=medium
 
   Upstream-provided “Notes on individual issues” as applicable:

@@ -59,7 +59,7 @@ hotspot_aarch32_archs = armhf
 hotspot_archs	= amd64 arm64 i386 ppc64 ppc64el \
 		  ${hotspot_aarch32_archs}
 jtreg_archs	= ${hotspot_archs} alpha armel \
-		  ia64 loong64 mips mipsel mips64 mips64el \
+		  loong64 mips mipsel mips64 mips64el \
 		  powerpc powerpcspe ppc64 ppc64el s390x sh4 sparc64 x32
 # FIXME: use bootcycle builds for zero archs?
 bootcycle_build  = $(if $(filter $(DEB_HOST_ARCH), $(hotspot_archs)),yes)
@@ -69,7 +69,7 @@ endif
 
 # we know about:
 # wheezy jessie stretch buster bullseye bookworm trixie sid
-# precise trusty xenial bionic focal jammy (mantic) noble oracular
+# precise trusty xenial bionic focal jammy noble oracular plucky
 
 ifneq (,$(filter $(distrel),wheezy precise trusty))
   is_default = no
@@ -101,12 +101,10 @@ shortver	= 8
 is_release		=
 is_release		= yes
 gh_project		= jdk8u
-#gh_tag			= jdk8u412-ga
-gh_tag			= jdk8u442-b06
+gh_tag			= jdk8u452-ga
 version_dash_buildnr	= $(subst ${gh_project},,${gh_tag})
-#version_dash_buildnr	= 412-b08
-# patched to get up to b05 (${UPSTREAM_PATCHES})
-gh_tag_aarch32		= jdk8u442-b06-aarch32-20250125
+version_dash_buildnr	= 452-b09
+gh_tag_aarch32		= jdk8u452-b07-aarch32-20250402
 package_version		= $(subst jdk,,${gh_tag})
 ifneq ($(is_release),yes)
   package_version	:= $(subst -,~,$(package_version))
@@ -157,20 +155,12 @@ ifneq (,$(filter $(distrel),precise wheezy))
   nocheck_profile =
   with_check = disabled running check on $(distrel)
 endif
-ifeq (,$(filter ${distrel},wheezy jessie stretch buster bullseye bookworm precise trusty xenial bionic focal jammy mantic noble oracular))
-  # Debian testing/sid
-  ifneq (,$(filter ${DEB_HOST_ARCH},m68k sh4))
-    # xfwm4 B-D for testing not available
-    with_check = disabled running check on ${distrel}/${DEB_HOST_ARCH}
-  endif
-  nocheck_profile = ${NULL} [!m68k !sh4] <!nocheck>
-endif
 #with_check = disabled for this build
 
 with_docs = $(if $(findstring nodoc, $(DEB_BUILD_OPTIONS)),,yes)
 
-arch_map	:= alpha=alpha amd64=amd64 arm64=aarch64 arm=arm armel=arm armhf=arm hppa=parisc i386=i586 ia64=ia64 loong64=loongarch64 m68k=m68k mips=mips mipsel=mipsel mips64=mips64 mips64el=mips64el powerpc=ppc powerpcspe=ppc ppc64=ppc64 ppc64el=ppc64le s390x=s390x sh4=sh sparc64=sparcv9 sparc=sparc x32=x32
-archdir_map	:= alpha=alpha amd64=amd64 arm64=aarch64 arm=arm armel=arm armhf=arm hppa=parisc i386=i386 ia64=ia64 loong64=loongarch64 m68k=m68k mips=mips mipsel=mipsel mips64=mips64 mips64el=mips64el powerpc=ppc powerpcspe=ppc ppc64=ppc64 ppc64el=ppc64le s390x=s390x sh4=sh sparc64=sparcv9 sparc=sparc x32=x32
+arch_map	:= alpha=alpha amd64=amd64 arm64=aarch64 arm=arm armel=arm armhf=arm hppa=parisc i386=i586 loong64=loongarch64 mips=mips mipsel=mipsel mips64=mips64 mips64el=mips64el powerpc=ppc powerpcspe=ppc ppc64=ppc64 ppc64el=ppc64le s390x=s390x sh4=sh sparc64=sparcv9 sparc=sparc x32=x32
+archdir_map	:= alpha=alpha amd64=amd64 arm64=aarch64 arm=arm armel=arm armhf=arm hppa=parisc i386=i386 loong64=loongarch64 mips=mips mipsel=mipsel mips64=mips64 mips64el=mips64el powerpc=ppc powerpcspe=ppc ppc64=ppc64 ppc64el=ppc64le s390x=s390x sh4=sh sparc64=sparcv9 sparc=sparc x32=x32
 
 jvmarch		:= $(strip $(patsubst $(DEB_HOST_ARCH_CPU)=%, %, \
 			$(filter $(DEB_HOST_ARCH_CPU)=%, $(arch_map))))
@@ -188,7 +178,7 @@ ifneq (,$(filter $(DEB_HOST_ARCH),$(hotspot_aarch32_archs)))
   hotspot_version = aarch32
 endif
 
-any_archs = alpha amd64 arm64 armel ${hotspot_aarch32_archs} i386 ia64 loong64 m68k mips mipsel mips64 mips64el powerpc powerpcspe ppc64 ppc64el s390x sh4 sparc sparc64 x32
+any_archs = alpha amd64 arm64 armel ${hotspot_aarch32_archs} i386 loong64 mips mipsel mips64 mips64el powerpc powerpcspe ppc64 ppc64el s390x sh4 sparc sparc64 x32
 
 ifneq (,$(filter $(distrel),xenial))
   transitional_jamvm_pkg = yes
@@ -284,8 +274,10 @@ else ifneq (,$(filter $(distrel),jammy))
   gccver=11
 else ifneq (,$(filter $(distrel),bookworm))
   gccver=12
-else
+else ifneq (,$(filter $(distrel),noble))
   gccver=13
+else
+  gccver=14
 endif
 
 bd_gcc = gcc-${gccver}, g++-${gccver},
@@ -325,7 +317,7 @@ endif
 
 ifeq (${derivative},Ubuntu)
   ifeq (${DEB_HOST_ARCH},i386)
-    ifneq (,$(filter ${distrel},focal jammy mantic))
+    ifneq (,$(filter ${distrel},focal jammy))
       # libatk-wrapper-java-jni:i386 is missing in these releases
       with_bridge = m-a-fake
     endif
@@ -383,20 +375,19 @@ COMMON_PATCHES = \
 	libjpeg-fix.diff \
 	sparc-fixes.diff \
 	jdk-target-arch-define.diff \
-	m68k-support.diff \
 	javadoc-sort-enum-and-annotation-types.diff \
 	s390x-thread-stack-size.diff \
 	jdk-getAccessibleValue.diff \
 	compiler-flags.diff \
 	jdk-841269-filechooser.patch \
 	jdk-i18n-pt_BR.diff \
-	hotspot-ia64.diff \
 	dnd-files.patch \
 	zero-x32.diff \
 	sparc-inline-conflict.diff \
 	zero-sh.diff \
 	t64-dlsyms.diff \
 	jdk-8334502-time_t.diff \
+	gcc14.diff \
 
 ifeq ($(derivative),Debian)
   COMMON_PATCHES += \
@@ -434,7 +425,7 @@ CONFIGURE_ARGS =
 # see http://icedtea.classpath.org/bugzilla/show_bug.cgi?id=217
 # only use it for zero ports except powerpc (which we assume as
 # fast enough to build.
-ifeq (,$(filter $(DEB_HOST_ARCH), $(hotspot_archs) ia64 powerpc powerpcspe ppc64 ppc64el))
+ifeq (,$(filter $(DEB_HOST_ARCH), $(hotspot_archs) powerpc powerpcspe ppc64 ppc64el))
   CONFIGURE_ARGS += --with-alt-jar=/usr/bin/fastjar
 endif
 
@@ -742,7 +733,7 @@ ifeq (,$(filter $(distrel),wheezy precise trusty))
 endif
 
 dlopen_hl_depends =
-ifeq (,$(filter ${distrel},wheezy jessie stretch buster bullseye bookworm precise trusty xenial bionic focal jammy mantic))
+ifeq (,$(filter ${distrel},wheezy jessie stretch buster bullseye bookworm precise trusty xenial bionic focal jammy))
   dlopen_hl_depends += libcups2t64,
   bd_syslibs += libcups2t64,
 else
@@ -767,7 +758,7 @@ endif
 dlopen_hl_recommends =
 
 dlopen_jre_depends =
-ifeq (,$(filter ${distrel},wheezy jessie stretch buster bullseye bookworm precise trusty xenial bionic focal jammy mantic))
+ifeq (,$(filter ${distrel},wheezy jessie stretch buster bullseye bookworm precise trusty xenial bionic focal jammy))
   dlopen_jre_depends += libglib2.0-0t64,
   bd_syslibs += libglib2.0-0t64,
 else
@@ -775,7 +766,7 @@ else
   bd_syslibs += libglib2.0-0 (>= 2.24),
 endif
 dlopen_jre_depends += libxrandr2, libxinerama1, libgl1-mesa-glx | libgl1,
-ifeq (,$(filter ${distrel},wheezy jessie stretch buster bullseye bookworm precise trusty xenial bionic focal jammy mantic))
+ifeq (,$(filter ${distrel},wheezy jessie stretch buster bullseye bookworm precise trusty xenial bionic focal jammy))
   dlopen_jre_depends += libgtk2.0-0t64,
   bd_syslibs += libgtk2.0-0t64,
 else
@@ -985,7 +976,7 @@ stamps/configure: stamps/patch
 	-cat /proc/cpuinfo
 
 	mkdir -p bin
-ifeq (,$(filter $(DEB_HOST_ARCH), alpha amd64 arm64 ia64 loong64 mips64 mips64el ppc64 ppc64el s390x sparc64 x32))
+ifeq (,$(filter $(DEB_HOST_ARCH), alpha amd64 arm64 loong64 mips64 mips64el ppc64 ppc64el s390x sparc64 x32))
 	( \
 	  echo '#! /bin/sh'; \
 	  echo 'if [ -x /usr/bin/linux32 ]; then'; \
@@ -1141,7 +1132,7 @@ build: pre-build $(build_stamps)
 	rm -f buildwatch.pid
 
 stamps/build: stamps/configure
-ifneq (,$(filter $(DEB_HOST_ARCH), alpha armel armhf ia64 loong64 m68k mips mipsel mips64 mips64el powerpc powerpcspe s390x sh4 sparc sparc64))
+ifneq (,$(filter $(DEB_HOST_ARCH), alpha armel armhf loong64 mips mipsel mips64 mips64el powerpc powerpcspe s390x sh4 sparc sparc64))
 	sh -c 'sh debian/buildwatch.sh $(CURDIR)/$(builddir) &'
 endif
 	if $(EXTRA_BUILD_ENV) $(MAKE) -C $(builddir) $(build_target); then \
@@ -1297,7 +1288,7 @@ debian-clean:
 
 lib_ext_dirs = common $(sort $(foreach arch,$(arch_map),$(firstword $(subst =,$(SPACE),$(arch)))))
 ifeq ($(derivative),Ubuntu)
-  lib_ext_dirs := $(filter-out arm hppa m68k mips% powerpcspe s390% sh%, $(lib_ext_dirs))
+  lib_ext_dirs := $(filter-out arm hppa mips% powerpcspe s390% sh%, $(lib_ext_dirs))
 else
   lib_ext_dirs := $(filter-out arm hppa, $(lib_ext_dirs))
 endif
